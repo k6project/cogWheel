@@ -1,0 +1,49 @@
+function(get_source_files PREFIX)
+    file(GLOB_RECURSE H_FILES LIST_DIRECTORIES false "${PREFIX}/inc/*.h")
+    file(GLOB_RECURSE C_FILES LIST_DIRECTORIES false "${PREFIX}/src/*.c")
+    set(SOURCE_FILES ${H_FILES} ${C_FILES} PARENT_SCOPE)
+endfunction(get_source_files)
+
+function(add_vulkan_sdk TARGET)
+    if(APPLE)
+        set(SDK_ROOT "${COGWHEEL_ROOT}/extern/macos/vulkan")
+        file(GLOB VK_DYLIB "${SDK_ROOT}/macOS/lib/libvulkan.?*.?*.?*.dylib")
+        get_filename_component(VK_LIBNAME ${VK_DYLIB} NAME)
+        file(GLOB VK_ICD "${SDK_ROOT}/macOS/lib/libMoltenVK.dylib")
+        file(GLOB VK_LAYERS "${SDK_ROOT}/macOS/lib/libVkLayer_*.dylib")
+        file(GLOB VK_LAYERS_JSON "${SDK_ROOT}/macOS/etc/vulkan/explicit_layers.d/*.json")
+        set(VK_ICD_JSON "${SDK_ROOT}/macOS/etc/vulkan/icd.d/MoltenVK_icd.json")
+        add_custom_command(
+            TARGET vktest PRE_BUILD 
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${VK_DYLIB} $<TARGET_FILE_DIR:${TARGET}>)
+        add_custom_command(
+            TARGET vktest PRE_BUILD 
+            COMMAND mkdir -p $<TARGET_FILE_DIR:${TARGET}>/../lib)
+        add_custom_command(
+            TARGET vktest PRE_BUILD 
+            COMMAND mkdir -p $<TARGET_FILE_DIR:${TARGET}>/../Resources/vulkan/icd.d)
+        add_custom_command(
+            TARGET vktest PRE_BUILD 
+            COMMAND mkdir -p $<TARGET_FILE_DIR:${TARGET}>/../Resources/vulkan/explicit_layer.d)
+        add_custom_command(
+            TARGET vktest POST_BUILD 
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${VK_ICD} ${VK_LAYERS} 
+            $<TARGET_FILE_DIR:${TARGET}>/../lib
+        )
+        add_custom_command(
+            TARGET vktest POST_BUILD 
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${VK_ICD_JSON} 
+            $<TARGET_FILE_DIR:${TARGET}>/../Resources/vulkan/icd.d
+        )
+        add_custom_command(
+            TARGET vktest POST_BUILD 
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${VK_LAYERS_JSON} 
+            $<TARGET_FILE_DIR:${TARGET}>/../Resources/vulkan/explicit_layer.d
+        )
+        add_custom_command(
+            TARGET vktest POST_BUILD 
+            COMMAND ln -sf ${VK_LIBNAME} $<TARGET_FILE_DIR:vktest>/libvulkan.dylib
+        )
+        target_include_directories(${TARGET} PUBLIC "${SDK_ROOT}/macOS/include")
+    endif(APPLE)
+endfunction(add_vulkan_sdk)
