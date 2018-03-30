@@ -1,4 +1,7 @@
 include(${CMAKE_UTILS})
 get_source_files(${CMAKE_CURRENT_LIST_DIR})
 add_executable(vktest MACOSX_BUNDLE ${SOURCE_FILES})
+target_compile_definitions(vktest PRIVATE PROGRAM_NAME="VkTest" PROGRAM_VERSION=0)
+target_include_directories(vktest PRIVATE "${CMAKE_CURRENT_LIST_DIR}/inc")
+target_include_directories(vktest PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src")
 add_vulkan_sdk(vktest)
