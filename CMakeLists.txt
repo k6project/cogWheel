@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.1.3)
 project(cogWheel C CXX)
 add_definitions(-DENGINE_NAME="cogWheel" -DENGINE_VERSION=0x000001)
-set(COGWHEEL_ROOT ${CMAKE_CURRENT_LIST_DIR})
+set(WORKSPACE_ROOT ${CMAKE_CURRENT_LIST_DIR})
 set(CMAKE_UTILS ${CMAKE_CURRENT_LIST_DIR}/CMakeUtils.txt)
 
 #add_subdirectory(engine)

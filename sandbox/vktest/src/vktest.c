@@ -1,9 +1,13 @@
 #include <stdio.h>
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
+#include <windows.h>
+#else
 #include <dlfcn.h>
+#include <unistd.h>
+#endif
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-#include <unistd.h>
 
 #include <vulkan/vulkan_api.h>
 
@@ -39,6 +43,9 @@ vklContext_t* const vkCtx = &vkCtx_;
 
 void vklInitialize(const char* appArg)
 {
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
+	vkCtx_.dll = LoadLibrary("vulkan-1.dll");
+#else
     const char* term = strrchr(appArg, '/');
     static const char libName[] = "libvulkan.dylib";
     if (term)
@@ -58,8 +65,13 @@ void vklInitialize(const char* appArg)
         printf("%s\n", dlerror());
         assert(0);
     }
+#endif
     VkResult result = VK_SUCCESS;
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
+	vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)GetProcAddress(vkCtx_.dll, "vkGetInstanceProcAddr");
+#else
     vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)dlsym(vkCtx_.dll, "vkGetInstanceProcAddr");
+#endif
     assert(vkGetInstanceProcAddr);
 #define VULKAN_API_GOBAL(proc) \
     assert(vk ## proc = ( PFN_vk ## proc )vkGetInstanceProcAddr( NULL, "vk" #proc ));
@@ -168,7 +180,11 @@ void vklShutdown()
 {
     if (vkCtx_.dll)
     {
+#ifdef VK_USE_PLATFORM_WIN32_KHR
+		FreeLibrary(vkCtx_.dll);
+#else
         dlclose(vkCtx_.dll);
+#endif
     }
     free(vkCtx_.deviceInfo);
     free(vkCtx_.extensions);
