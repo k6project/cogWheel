@@ -21,6 +21,10 @@ VULKAN_API_INSTANCE(GetPhysicalDeviceSurfaceCapabilitiesKHR)
 VULKAN_API_INSTANCE(GetPhysicalDeviceSurfaceFormatsKHR)
 VULKAN_API_INSTANCE(GetPhysicalDeviceSurfacePresentModesKHR)
 VULKAN_API_INSTANCE(DestroySurfaceKHR)
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
+#elif defined(VK_USE_PLATFORM_MACOS_MVK)
+VULKAN_API_INSTANCE(CreateMacOSSurfaceMVK)
+#endif
 #ifdef VK_DEBUG
 VULKAN_API_INSTANCE(CreateDebugReportCallbackEXT)
 VULKAN_API_INSTANCE(DebugReportMessageEXT)

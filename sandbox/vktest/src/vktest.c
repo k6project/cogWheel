@@ -37,6 +37,7 @@ static const char* VK_REQUIRED_EXTENSIONS[] =
 
 static const uint32_t VK_NUM_REQUIRED_LAYERS = sizeof(VK_REQUIRED_LAYERS) / sizeof(const char*);
 static const uint32_t VK_NUM_REQUIRED_EXTENSIONS = sizeof(VK_REQUIRED_EXTENSIONS) / sizeof(const char*);
+static const uint32_t VK_NUM_REQUIRED_DEVICE_EXTENSIONS = VK_NUM_REQUIRED_EXTENSIONS - 1;
 
 static vklContext_t vkCtx_;
 vklContext_t* const vkCtx = &vkCtx_;
@@ -152,7 +153,30 @@ void vklInitialize(const char* appArg)
     }
 }
 
-VkDevice vklCreateLogicalDevice(vklDeviceSetupProc_t setupProc, void* context)
+VkSurfaceKHR vklCreateSurface(void* handle)
+{
+    VkResult result = VK_SUCCESS;
+    VkSurfaceKHR surface = NULL;
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
+    VkWin32SurfaceCreateInfoKHR info;
+    info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    info.pNext = NULL;
+    info.hinstance = GetInstance(NULL);
+    info.hwnd = handle;
+    result = vkCreateWin32SurfaceKHR(vkCtx_.instance, &info, NULL, &surface);
+#elif defined(VK_USE_PLATFORM_MACOS_MVK)
+    VkMacOSSurfaceCreateInfoMVK info;
+    info.sType = VK_STRUCTURE_TYPE_MACOS_SURFACE_CREATE_INFO_MVK;
+    info.pNext = NULL;
+    info.pView = handle;
+    info.flags = 0;
+    result = vkCreateMacOSSurfaceMVK(vkCtx_.instance, &info, NULL, &surface);
+#endif
+    assert(result == VK_SUCCESS);
+    return surface;
+}
+
+VkDevice vklCreateDevice(vklDeviceSetupProc_t setupProc, void* context)
 {
     vklDeviceSetup_t setup;
     if (setupProc(context, &setup, vkCtx_.deviceInfo, vkCtx_.numDevices) != VK_SUCCESS)
@@ -166,6 +190,8 @@ VkDevice vklCreateLogicalDevice(vklDeviceSetupProc_t setupProc, void* context)
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     createInfo.queueCreateInfoCount = setup.numQueues;
     createInfo.pQueueCreateInfos = setup.queues;
+    createInfo.enabledExtensionCount = VK_NUM_REQUIRED_DEVICE_EXTENSIONS;
+    createInfo.ppEnabledExtensionNames = VK_REQUIRED_EXTENSIONS;
     if(vkCreateDevice(vkCtx_.devices[setup.index], &createInfo, NULL, &device) == VK_SUCCESS)
     {
 #define VULKAN_API_DEVICE(proc) \

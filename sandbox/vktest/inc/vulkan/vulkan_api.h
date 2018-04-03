@@ -36,6 +36,8 @@ typedef struct
     vklDeviceInfo_t* deviceInfo;
 } vklContext_t;
 
+VkSurfaceKHR vklCreateSurface(void*);
+
 typedef VkResult (*vklDeviceSetupProc_t)(void*, vklDeviceSetup_t*, const vklDeviceInfo_t*, uint32_t);
 
-VkDevice vklCreateLogicalDevice(vklDeviceSetupProc_t, void*);
+VkDevice vklCreateDevice(vklDeviceSetupProc_t, void*);
