@@ -7,11 +7,11 @@
 
 #include <vulkan/vulkan_api.h>
 
-PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr = NULL;
+static PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
 #define VULKAN_API_GOBAL(proc) PFN_vk ## proc vk ## proc = NULL;
 #define VULKAN_API_INSTANCE(proc) PFN_vk ## proc vk ## proc = NULL;
 #define VULKAN_API_DEVICE(proc) PFN_vk ## proc vk ## proc = NULL;
-#include <vkproc.inl.h>
+#include "vkproc.inl.h"
 
 static const char* VK_REQUIRED_LAYERS[] =
 {
@@ -34,92 +34,64 @@ static const char* VK_REQUIRED_EXTENSIONS[] =
 static const uint32_t VK_NUM_REQUIRED_LAYERS = sizeof(VK_REQUIRED_LAYERS) / sizeof(const char*);
 static const uint32_t VK_NUM_REQUIRED_EXTENSIONS = sizeof(VK_REQUIRED_EXTENSIONS) / sizeof(const char*);
 
-static void initVkGlobalFunctions()
-{
-#define VULKAN_API_GOBAL(proc) \
-    assert(vk ## proc = ( PFN_vk ## proc )vkGetInstanceProcAddr( NULL, "vk" #proc ));
-#include <vkproc.inl.h>
-}
+static vklContext_t vkCtx_;
+vklContext_t* const vkCtx = &vkCtx_;
 
-static void initVkInstanceFunctions(VkInstance instance)
+void vklInitialize(const char* appArg)
 {
-#define VULKAN_API_INSTANCE(proc) \
-    assert(vk ## proc = ( PFN_vk ## proc )vkGetInstanceProcAddr( instance, "vk" #proc ));
-#include <vkproc.inl.h>
-}
-
-static inline void vkUnloadDll(vkContext_t* vk)
-{
-    if (vk->dll)
-    {
-        dlclose(vk->dll);
-    }
-    free(vk->deviceInfo);
-    free(vk->extensions);
-    free(vk->layers);
-    free(vk->devices);
-}
-
-static inline void vkLoadDll(vkContext_t* vk, const char* argv0)
-{
-    const char* term = strrchr(argv0, '/');
+    const char* term = strrchr(appArg, '/');
     static const char libName[] = "libvulkan.dylib";
-    memset(vk, 0, sizeof(vkContext_t));
     if (term)
     {
-        int length = term - argv0 + 1;
+        int length = term - appArg + 1;
         char* cwd = (char*)malloc(length + sizeof(libName));
-        memcpy(cwd, argv0, length);
+        memcpy(cwd, appArg, length);
         memcpy(cwd + length, libName, sizeof(libName));
-        vk->dll = dlopen(cwd, RTLD_LOCAL | RTLD_NOW);
+        vkCtx_.dll = dlopen(cwd, RTLD_LOCAL | RTLD_NOW);
     }
     else
     {
-        vk->dll = dlopen(libName, RTLD_LOCAL | RTLD_NOW);
+        vkCtx_.dll = dlopen(libName, RTLD_LOCAL | RTLD_NOW);
     }
-    if (!vk->dll)
+    if (!vkCtx_.dll)
     {
         printf("%s\n", dlerror());
         assert(0);
     }
-}
-
-int main(int argc, const char * argv[])
-{
-    VkResult result;
-    vkContext_t vkApi;
-    
-    vkLoadDll(&vkApi, argv[0]);
-    vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)dlsym(vkApi.dll, "vkGetInstanceProcAddr");
+    VkResult result = VK_SUCCESS;
+    vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)dlsym(vkCtx_.dll, "vkGetInstanceProcAddr");
     assert(vkGetInstanceProcAddr);
-    initVkGlobalFunctions();
-    
-    result = vkEnumerateInstanceLayerProperties(&vkApi.numLayers, NULL);
+#define VULKAN_API_GOBAL(proc) \
+    assert(vk ## proc = ( PFN_vk ## proc )vkGetInstanceProcAddr( NULL, "vk" #proc ));
+#include "vkproc.inl.h"
+    result = vkEnumerateInstanceLayerProperties(&vkCtx_.numLayers, NULL);
     assert(result == VK_SUCCESS);
-    if (vkApi.numLayers > 0)
+#ifdef VK_DEBUG
+    if (vkCtx_.numLayers > 0)
     {
-        vkApi.layers = (VkLayerProperties*)malloc(vkApi.numLayers * sizeof(VkLayerProperties));
-        result = vkEnumerateInstanceLayerProperties(&vkApi.numLayers, vkApi.layers);
+        vkCtx_.layers = (VkLayerProperties*)malloc(vkCtx_.numLayers * sizeof(VkLayerProperties));
+        result = vkEnumerateInstanceLayerProperties(&vkCtx_.numLayers, vkCtx_.layers);
         assert(result == VK_SUCCESS);
-        for (uint32_t i = 0; i < vkApi.numLayers; i++)
+        for (uint32_t i = 0; i < vkCtx_.numLayers; i++)
         {
-            printf("%s\n", vkApi.layers[i].layerName);
+            printf("%s\n", vkCtx_.layers[i].layerName);
         }
     }
-    
-    result = vkEnumerateInstanceExtensionProperties(NULL, &vkApi.numExtensions, NULL);
+#endif
+    result = vkEnumerateInstanceExtensionProperties(NULL, &vkCtx_.numExtensions, NULL);
     assert(result == VK_SUCCESS);
-    if (vkApi.numExtensions > 0)
+#ifdef VK_DEBUG
+    if (vkCtx_.numExtensions > 0)
     {
-        vkApi.extensions = (VkExtensionProperties*)malloc(vkApi.numExtensions * sizeof(VkExtensionProperties));
-        result = vkEnumerateInstanceExtensionProperties(NULL, &vkApi.numExtensions, vkApi.extensions);
+        vkCtx_.extensions = (VkExtensionProperties*)malloc(vkCtx_.numExtensions * sizeof(VkExtensionProperties));
+        result = vkEnumerateInstanceExtensionProperties(NULL, &vkCtx_.numExtensions, vkCtx_.extensions);
         assert(result == VK_SUCCESS);
-        for (uint32_t i = 0; i < vkApi.numExtensions; i++)
+        for (uint32_t i = 0; i < vkCtx_.numExtensions; i++)
         {
-            printf("%s\n", vkApi.extensions[i].extensionName);
+            printf("%s\n", vkCtx_.extensions[i].extensionName);
         }
     }
-    
+#endif
     VkApplicationInfo appInfo;
     memset(&appInfo, 0, sizeof(VkApplicationInfo));
     appInfo.sType =VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -128,7 +100,6 @@ int main(int argc, const char * argv[])
     appInfo.pEngineName = ENGINE_NAME;
     appInfo.engineVersion = ENGINE_VERSION;
     appInfo.apiVersion = VK_VERSION_1_0;
-    
     VkInstanceCreateInfo info;
     memset(&info, 0, sizeof(VkInstanceCreateInfo));
     info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -137,31 +108,77 @@ int main(int argc, const char * argv[])
     info.ppEnabledLayerNames = VK_REQUIRED_LAYERS;
     info.enabledExtensionCount = VK_NUM_REQUIRED_EXTENSIONS;
     info.ppEnabledExtensionNames = VK_REQUIRED_EXTENSIONS;
-    
-    VkInstance instance;
-    result = vkCreateInstance(&info, NULL, &instance);
+    result = vkCreateInstance(&info, NULL, &vkCtx_.instance);
     assert(result == VK_SUCCESS);
-    initVkInstanceFunctions(instance);
-    
-    result = vkEnumeratePhysicalDevices(instance, &vkApi.numDevices, NULL);
+#define VULKAN_API_INSTANCE(proc) \
+    assert(vk ## proc = ( PFN_vk ## proc )vkGetInstanceProcAddr( vkCtx_.instance, "vk" #proc ));
+#include "vkproc.inl.h"
+    result = vkEnumeratePhysicalDevices(vkCtx_.instance, &vkCtx_.numDevices, NULL);
     assert(result == VK_SUCCESS);
-    if (vkApi.numDevices > 0)
+    if (vkCtx_.numDevices > 0)
     {
-        vkApi.devices = (VkPhysicalDevice*)malloc(vkApi.numDevices * sizeof(VkPhysicalDevice));
-        vkApi.deviceInfo = (vkDeviceInfo_t*)malloc(vkApi.numDevices * sizeof(vkDeviceInfo_t));
-        result = vkEnumeratePhysicalDevices(instance, &vkApi.numDevices, vkApi.devices);
+        vkCtx_.devices = (VkPhysicalDevice*)malloc(vkCtx_.numDevices * sizeof(VkPhysicalDevice));
+        vkCtx_.deviceInfo = (vklDeviceInfo_t*)calloc(vkCtx_.numDevices, sizeof(vklDeviceInfo_t));
+        result = vkEnumeratePhysicalDevices(vkCtx_.instance, &vkCtx_.numDevices, vkCtx_.devices);
         assert(result == VK_SUCCESS);
-        for (uint32_t i = 0; i < vkApi.numDevices; i++)
+        for (uint32_t i = 0; i < vkCtx_.numDevices; i++)
         {
-            VkPhysicalDeviceProperties props;
-            vkGetPhysicalDeviceProperties(vkApi.devices[i], &props);
-            strcpy(vkApi.deviceInfo[i].name, props.deviceName);
-            vkApi.deviceInfo[i].type = props.deviceType;
+            vkGetPhysicalDeviceFeatures(vkCtx_.devices[i], &vkCtx_.deviceInfo[i].features);
+            vkGetPhysicalDeviceProperties(vkCtx_.devices[i], &vkCtx_.deviceInfo[i].properties);
+            vkGetPhysicalDeviceMemoryProperties(vkCtx_.devices[i], &vkCtx_.deviceInfo[i].memory);
+            vkGetPhysicalDeviceQueueFamilyProperties(vkCtx_.devices[i], &vkCtx_.deviceInfo[i].numFamilies, NULL);
+            if (vkCtx_.deviceInfo[i].numFamilies > 0)
+            {
+                vkCtx_.deviceInfo[i].families = (VkQueueFamilyProperties*)malloc(sizeof(VkQueueFamilyProperties) * vkCtx_.deviceInfo[i].numFamilies);
+                vkGetPhysicalDeviceQueueFamilyProperties(vkCtx_.devices[i], &vkCtx_.deviceInfo[i].numFamilies, vkCtx_.deviceInfo[i].families);
+            }
+            for (uint32_t j = 0; j < vkCtx_.deviceInfo[i].memory.memoryHeapCount; j++)
+            {
+                vkCtx_.deviceInfo[i].memTotalSize += vkCtx_.deviceInfo[i].memory.memoryHeaps[j].size;
+            }
         }
     }
-    
-    vkDestroyInstance(instance, NULL);
+}
 
-    vkUnloadDll(&vkApi);
+VkDevice vklCreateLogicalDevice(vklDeviceSetupProc_t setupProc, void* context)
+{
+    vklDeviceSetup_t setup;
+    if (setupProc(context, &setup, vkCtx_.deviceInfo, vkCtx_.numDevices) != VK_SUCCESS)
+    {
+        return NULL;
+    }
+    
+    VkDevice device = NULL;
+    VkDeviceCreateInfo createInfo;
+    memset(&createInfo, 0, sizeof(VkDeviceCreateInfo));
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.queueCreateInfoCount = setup.numQueues;
+    createInfo.pQueueCreateInfos = setup.queues;
+    if(vkCreateDevice(vkCtx_.devices[setup.index], &createInfo, NULL, &device) == VK_SUCCESS)
+    {
+#define VULKAN_API_DEVICE(proc) \
+    assert(vk ## proc = ( PFN_vk ## proc )vkGetDeviceProcAddr( device, "vk" #proc ));
+#include "vkproc.inl.h"
+    }
+    
+    return device;
+}
+
+void vklShutdown()
+{
+    if (vkCtx_.dll)
+    {
+        dlclose(vkCtx_.dll);
+    }
+    free(vkCtx_.deviceInfo);
+    free(vkCtx_.extensions);
+    free(vkCtx_.layers);
+    free(vkCtx_.devices);
+}
+
+int main(int argc, const char * argv[])
+{
+    vklInitialize(*argv);
+    vklShutdown();
     return 0;
 }

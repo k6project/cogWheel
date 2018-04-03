@@ -26,6 +26,7 @@ VULKAN_API_INSTANCE(CreateDebugReportCallbackEXT)
 VULKAN_API_INSTANCE(DebugReportMessageEXT)
 VULKAN_API_INSTANCE(DestroyDebugReportCallbackEXT)
 #endif
+VULKAN_API_INSTANCE(GetDeviceProcAddr)
 VULKAN_API_INSTANCE(CreateDevice)
 #undef VULKAN_API_INSTANCE
 

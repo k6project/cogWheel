@@ -1,7 +1,8 @@
 function(get_source_files PREFIX)
     file(GLOB_RECURSE H_FILES LIST_DIRECTORIES false "${PREFIX}/inc/*.h")
     file(GLOB_RECURSE C_FILES LIST_DIRECTORIES false "${PREFIX}/src/*.c")
-    set(SOURCE_FILES ${H_FILES} ${C_FILES} PARENT_SCOPE)
+    file(GLOB_RECURSE _H_FILES LIST_DIRECTORIES false "${PREFIX}/src/*.h")
+    set(SOURCE_FILES ${H_FILES} ${C_FILES} ${_H_FILES} PARENT_SCOPE)
 endfunction(get_source_files)
 
 function(add_vulkan_sdk TARGET)
@@ -44,6 +45,7 @@ function(add_vulkan_sdk TARGET)
             TARGET vktest POST_BUILD 
             COMMAND ln -sf ${VK_LIBNAME} $<TARGET_FILE_DIR:vktest>/libvulkan.dylib
         )
+        target_compile_definitions(${TARGET} PRIVATE VK_USE_PLATFORM_MACOS_MVK "$<$<CONFIG:debug>:VK_DEBUG>")
         target_include_directories(${TARGET} PUBLIC "${SDK_ROOT}/macOS/include")
     endif(APPLE)
 endfunction(add_vulkan_sdk)

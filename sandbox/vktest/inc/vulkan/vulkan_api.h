@@ -1,7 +1,6 @@
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
 
-extern PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
 #define VULKAN_API_GOBAL(proc) extern PFN_vk ## proc vk ## proc;
 #define VULKAN_API_INSTANCE(proc) extern PFN_vk ## proc vk ## proc;
 #define VULKAN_API_DEVICE(proc) extern PFN_vk ## proc vk ## proc;
@@ -9,9 +8,20 @@ extern PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
 
 typedef struct
 {
-    char name[VK_MAX_PHYSICAL_DEVICE_NAME_SIZE];
-    VkPhysicalDeviceType type;
-} vkDeviceInfo_t;
+    VkPhysicalDeviceFeatures features;
+    VkPhysicalDeviceProperties properties;
+    VkPhysicalDeviceMemoryProperties memory;
+    uint32_t numFamilies;
+    VkQueueFamilyProperties* families;
+    uint64_t memTotalSize;
+} vklDeviceInfo_t;
+
+typedef struct
+{
+    uint32_t index;
+    uint32_t numQueues;
+    VkDeviceQueueCreateInfo* queues;
+} vklDeviceSetup_t;
 
 typedef struct
 {
@@ -20,7 +30,12 @@ typedef struct
     VkLayerProperties* layers;
     uint32_t numExtensions;
     VkExtensionProperties* extensions;
+    VkInstance instance;
     uint32_t numDevices;
     VkPhysicalDevice* devices;
-    vkDeviceInfo_t* deviceInfo;
-} vkContext_t;
+    vklDeviceInfo_t* deviceInfo;
+} vklContext_t;
+
+typedef VkResult (*vklDeviceSetupProc_t)(void*, vklDeviceSetup_t*, const vklDeviceInfo_t*, uint32_t);
+
+VkDevice vklCreateLogicalDevice(vklDeviceSetupProc_t, void*);
