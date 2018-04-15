@@ -33,6 +33,8 @@
 #if defined(__OBJC__)
 #import <Carbon/Carbon.h>
 #import <Cocoa/Cocoa.h>
+#import <Metal/Metal.h>
+#import <QuartzCore/CAMetalLayer.h>
 #else
 #include <Carbon/Carbon.h>
 #include <ApplicationServices/ApplicationServices.h>

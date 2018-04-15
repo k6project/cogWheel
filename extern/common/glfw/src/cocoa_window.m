@@ -379,9 +379,21 @@ static const NSRange kEmptyRange = { NSNotFound, 0 };
         [self updateTrackingAreas];
         [self registerForDraggedTypes:[NSArray arrayWithObjects:
                                        NSFilenamesPboardType, nil]];
+        self.wantsLayer = YES;
     }
 
     return self;
+}
+
+-(CALayer *)makeBackingLayer
+{
+    CAMetalLayer* layer = [[CAMetalLayer alloc] init];
+    layer.device = MTLCreateSystemDefaultDevice();
+    layer.framebufferOnly = YES;
+    layer.frame = self.bounds;
+    layer.drawableSize = self.bounds.size;
+    layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+    return layer;
 }
 
 - (void)dealloc
@@ -1003,12 +1015,12 @@ static GLFWbool createNativeWindow(_GLFWwindow* window,
 #if defined(_GLFW_USE_RETINA)
     [window->ns.view setWantsBestResolutionOpenGLSurface:YES];
 #endif /*_GLFW_USE_RETINA*/
-
+    
+    [window->ns.object setContentView:window->ns.view];
     [window->ns.object makeFirstResponder:window->ns.view];
     [window->ns.object setTitle:[NSString stringWithUTF8String:wndconfig->title]];
     [window->ns.object setDelegate:window->ns.delegate];
     [window->ns.object setAcceptsMouseMovedEvents:YES];
-    [window->ns.object setContentView:window->ns.view];
     [window->ns.object setRestorable:NO];
 
     return GLFW_TRUE;
@@ -1649,5 +1661,12 @@ GLFWAPI id glfwGetCocoaWindow(GLFWwindow* handle)
     _GLFWwindow* window = (_GLFWwindow*) handle;
     _GLFW_REQUIRE_INIT_OR_RETURN(nil);
     return window->ns.object;
+}
+
+GLFWAPI id glfwGetCocoaView(GLFWwindow* handle)
+{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    _GLFW_REQUIRE_INIT_OR_RETURN(nil);
+    return window->ns.view;
 }
 

@@ -9,6 +9,8 @@
 #include <assert.h>
 #include <string.h>
 
+#include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
 #include <vulkan/vulkan_api.h>
 
 static PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
@@ -221,6 +223,21 @@ void vklShutdown()
 int main(int argc, const char * argv[])
 {
     vklInitialize(*argv);
+    if (glfwInit())
+    {
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+        GLFWwindow* window = glfwCreateWindow(512, 512, PROGRAM_NAME, NULL, NULL);
+        if (window)
+        {
+            vklCreateSurface(glfwGetCocoaView(window));
+            while (!glfwWindowShouldClose(window))
+            {
+                glfwPollEvents();
+            }
+        }
+        glfwDestroyWindow(window);
+        glfwTerminate();
+    }
     vklShutdown();
     return 0;
 }

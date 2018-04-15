@@ -1,7 +1,16 @@
 include(${CMAKE_UTILS})
+add_subdirectory(${WORKSPACE_ROOT}/extern/common/glfw ${CMAKE_CURRENT_BINARY_DIR}/glfw)
 get_source_files(${CMAKE_CURRENT_LIST_DIR})
 add_executable(vktest MACOSX_BUNDLE ${SOURCE_FILES})
 target_compile_definitions(vktest PRIVATE PROGRAM_NAME="VkTest" PROGRAM_VERSION=0)
 target_include_directories(vktest PRIVATE "${CMAKE_CURRENT_LIST_DIR}/inc")
 target_include_directories(vktest PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src")
+
+if(APPLE)
+    target_compile_definitions(vktest PRIVATE GLFW_EXPOSE_NATIVE_COCOA)
+elseif(WIN32)
+    target_compile_definitions(vktest PRIVATE GLFW_EXPOSE_NATIVE_WIN32)
+endif()
+target_link_libraries(vktest "glfw")
+
 add_vulkan_sdk(vktest)
