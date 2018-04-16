@@ -8,6 +8,7 @@
 
 typedef struct
 {
+    VkPhysicalDevice handle;
     VkPhysicalDeviceFeatures features;
     VkPhysicalDeviceProperties properties;
     VkPhysicalDeviceMemoryProperties memory;
@@ -20,6 +21,8 @@ typedef struct
 {
     uint32_t index;
     uint32_t numQueues;
+    uint32_t gfxQueue;
+    uint32_t presentQueue;
     VkDeviceQueueCreateInfo* queues;
 } vklDeviceSetup_t;
 
@@ -32,11 +35,13 @@ typedef struct
     VkExtensionProperties* extensions;
     VkInstance instance;
     uint32_t numDevices;
-    VkPhysicalDevice* devices;
+    //VkPhysicalDevice* devices;
     vklDeviceInfo_t* deviceInfo;
 } vklContext_t;
 
 VkSurfaceKHR vklCreateSurface(void*);
+
+void vklDestroySurface(VkSurfaceKHR);
 
 typedef VkResult (*vklDeviceSetupProc_t)(void*, vklDeviceSetup_t*, const vklDeviceInfo_t*, uint32_t);
 

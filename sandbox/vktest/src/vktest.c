@@ -37,9 +37,14 @@ static const char* VK_REQUIRED_EXTENSIONS[] =
 #endif
 };
 
+static const char* VK_REQUIRED_DEVICE_EXTENSIONS[] =
+{
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
+
 static const uint32_t VK_NUM_REQUIRED_LAYERS = sizeof(VK_REQUIRED_LAYERS) / sizeof(const char*);
 static const uint32_t VK_NUM_REQUIRED_EXTENSIONS = sizeof(VK_REQUIRED_EXTENSIONS) / sizeof(const char*);
-static const uint32_t VK_NUM_REQUIRED_DEVICE_EXTENSIONS = VK_NUM_REQUIRED_EXTENSIONS - 1;
+static const uint32_t VK_NUM_REQUIRED_DEVICE_EXTENSIONS = sizeof(VK_REQUIRED_DEVICE_EXTENSIONS) / sizeof(const char*);
 
 static vklContext_t vkCtx_;
 vklContext_t* const vkCtx = &vkCtx_;
@@ -132,26 +137,29 @@ void vklInitialize(const char* appArg)
     assert(result == VK_SUCCESS);
     if (vkCtx_.numDevices > 0)
     {
-        vkCtx_.devices = (VkPhysicalDevice*)malloc(vkCtx_.numDevices * sizeof(VkPhysicalDevice));
         vkCtx_.deviceInfo = (vklDeviceInfo_t*)calloc(vkCtx_.numDevices, sizeof(vklDeviceInfo_t));
-        result = vkEnumeratePhysicalDevices(vkCtx_.instance, &vkCtx_.numDevices, vkCtx_.devices);
+        VkPhysicalDevice* devices = (VkPhysicalDevice*)malloc(vkCtx_.numDevices * sizeof(VkPhysicalDevice));
+        result = vkEnumeratePhysicalDevices(vkCtx_.instance, &vkCtx_.numDevices, devices);
         assert(result == VK_SUCCESS);
         for (uint32_t i = 0; i < vkCtx_.numDevices; i++)
         {
-            vkGetPhysicalDeviceFeatures(vkCtx_.devices[i], &vkCtx_.deviceInfo[i].features);
-            vkGetPhysicalDeviceProperties(vkCtx_.devices[i], &vkCtx_.deviceInfo[i].properties);
-            vkGetPhysicalDeviceMemoryProperties(vkCtx_.devices[i], &vkCtx_.deviceInfo[i].memory);
-            vkGetPhysicalDeviceQueueFamilyProperties(vkCtx_.devices[i], &vkCtx_.deviceInfo[i].numFamilies, NULL);
+            vkCtx_.deviceInfo[i].handle = devices[i];
+            vkGetPhysicalDeviceFeatures(devices[i], &vkCtx_.deviceInfo[i].features);
+            vkGetPhysicalDeviceProperties(devices[i], &vkCtx_.deviceInfo[i].properties);
+            vkGetPhysicalDeviceMemoryProperties(devices[i], &vkCtx_.deviceInfo[i].memory);
+            vkGetPhysicalDeviceQueueFamilyProperties(devices[i], &vkCtx_.deviceInfo[i].numFamilies, NULL);
             if (vkCtx_.deviceInfo[i].numFamilies > 0)
             {
-                vkCtx_.deviceInfo[i].families = (VkQueueFamilyProperties*)malloc(sizeof(VkQueueFamilyProperties) * vkCtx_.deviceInfo[i].numFamilies);
-                vkGetPhysicalDeviceQueueFamilyProperties(vkCtx_.devices[i], &vkCtx_.deviceInfo[i].numFamilies, vkCtx_.deviceInfo[i].families);
+                uint32_t numFamilies = vkCtx_.deviceInfo[i].numFamilies;
+                vkCtx_.deviceInfo[i].families = (VkQueueFamilyProperties*)malloc(sizeof(VkQueueFamilyProperties) * numFamilies);
+                vkGetPhysicalDeviceQueueFamilyProperties(devices[i], &vkCtx_.deviceInfo[i].numFamilies, vkCtx_.deviceInfo[i].families);
             }
             for (uint32_t j = 0; j < vkCtx_.deviceInfo[i].memory.memoryHeapCount; j++)
             {
                 vkCtx_.deviceInfo[i].memTotalSize += vkCtx_.deviceInfo[i].memory.memoryHeaps[j].size;
             }
         }
+        free(devices);
     }
 }
 
@@ -178,6 +186,11 @@ VkSurfaceKHR vklCreateSurface(void* handle)
     return surface;
 }
 
+void vklDestroySurface(VkSurfaceKHR surface)
+{
+    vkDestroySurfaceKHR(vkCtx_.instance, surface, NULL);
+}
+
 VkDevice vklCreateDevice(vklDeviceSetupProc_t setupProc, void* context)
 {
     vklDeviceSetup_t setup;
@@ -185,22 +198,23 @@ VkDevice vklCreateDevice(vklDeviceSetupProc_t setupProc, void* context)
     {
         return NULL;
     }
-    
     VkDevice device = NULL;
     VkDeviceCreateInfo createInfo;
+    VkPhysicalDevice gpu = vkCtx_.deviceInfo[setup.index].handle;
     memset(&createInfo, 0, sizeof(VkDeviceCreateInfo));
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     createInfo.queueCreateInfoCount = setup.numQueues;
     createInfo.pQueueCreateInfos = setup.queues;
     createInfo.enabledExtensionCount = VK_NUM_REQUIRED_DEVICE_EXTENSIONS;
-    createInfo.ppEnabledExtensionNames = VK_REQUIRED_EXTENSIONS;
-    if(vkCreateDevice(vkCtx_.devices[setup.index], &createInfo, NULL, &device) == VK_SUCCESS)
+    createInfo.ppEnabledExtensionNames = VK_REQUIRED_DEVICE_EXTENSIONS;
+    createInfo.ppEnabledLayerNames = VK_REQUIRED_LAYERS;
+    createInfo.enabledLayerCount = VK_NUM_REQUIRED_LAYERS;
+    if(vkCreateDevice(gpu, &createInfo, NULL, &device) == VK_SUCCESS)
     {
 #define VULKAN_API_DEVICE(proc) \
     assert(vk ## proc = ( PFN_vk ## proc )vkGetDeviceProcAddr( device, "vk" #proc ));
 #include "vkproc.inl.h"
     }
-    
     return device;
 }
 
@@ -217,7 +231,44 @@ void vklShutdown()
     free(vkCtx_.deviceInfo);
     free(vkCtx_.extensions);
     free(vkCtx_.layers);
-    free(vkCtx_.devices);
+}
+
+/* TEST APPLICATION CODE */
+
+VkResult deviceSetup(void* context,
+                     vklDeviceSetup_t* conf,
+                     const vklDeviceInfo_t* devices,
+                     uint32_t numDevices)
+{
+    VkSurfaceKHR surface = (VkSurfaceKHR)context;
+    conf->numQueues = 1;
+    conf->queues = calloc(conf->numQueues, sizeof(VkDeviceQueueCreateInfo));
+    for (uint32_t i = 0; i < numDevices; i++)
+    {
+        const vklDeviceInfo_t* info = &devices[i];
+        if (info->properties.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+        {
+            continue;
+        }
+        for (uint32_t j = 0; j < info->numFamilies; j++)
+        {
+            VkBool32 canPresent = VK_FALSE;
+            VkQueueFamilyProperties* props = &info->families[j];
+            vkGetPhysicalDeviceSurfaceSupportKHR(info->handle, j, surface, &canPresent);
+            if ((props->queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0 && canPresent)
+            {
+                conf->queues[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+                conf->queues[0].queueFamilyIndex = j;
+                conf->queues[0].queueCount = 1;
+                conf->queues[0].pQueuePriorities = calloc(1, sizeof(float));
+                conf->index = i;
+                conf->gfxQueue = 0;
+                conf->presentQueue = 0;
+                return VK_SUCCESS;
+            }
+        }
+    }
+    return VK_ERROR_INITIALIZATION_FAILED;
 }
 
 int main(int argc, const char * argv[])
@@ -226,14 +277,19 @@ int main(int argc, const char * argv[])
     if (glfwInit())
     {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        GLFWwindow* window = glfwCreateWindow(512, 512, PROGRAM_NAME, NULL, NULL);
+        GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+        const GLFWvidmode* vidMode = glfwGetVideoMode(monitor);
+        GLFWwindow* window = glfwCreateWindow(vidMode->width, vidMode->height, PROGRAM_NAME, monitor, NULL);
         if (window)
         {
-            vklCreateSurface(glfwGetCocoaView(window));
+            VkSurfaceKHR surface = vklCreateSurface(glfwGetCocoaView(window));
+            VkDevice device = vklCreateDevice(&deviceSetup, surface);
             while (!glfwWindowShouldClose(window))
             {
                 glfwPollEvents();
             }
+            vkDestroyDevice(device, NULL);
+            vklDestroySurface(surface);
         }
         glfwDestroyWindow(window);
         glfwTerminate();
