@@ -119,7 +119,7 @@ void vklInitialize(const char* appArg)
     appInfo.applicationVersion = PROGRAM_VERSION;
     appInfo.pEngineName = ENGINE_NAME;
     appInfo.engineVersion = ENGINE_VERSION;
-    appInfo.apiVersion = VK_VERSION_1_0;
+	appInfo.apiVersion = VK_MAKE_VERSION(1, 0, 69);
     VkInstanceCreateInfo info;
     memset(&info, 0, sizeof(VkInstanceCreateInfo));
     info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -171,7 +171,8 @@ VkSurfaceKHR vklCreateSurface(void* handle)
     VkWin32SurfaceCreateInfoKHR info;
     info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
     info.pNext = NULL;
-    info.hinstance = GetInstance(NULL);
+	info.flags = 0;
+    info.hinstance = GetModuleHandle(NULL);
     info.hwnd = handle;
     result = vkCreateWin32SurfaceKHR(vkCtx_.instance, &info, NULL, &surface);
 #elif defined(VK_USE_PLATFORM_MACOS_MVK)
@@ -282,7 +283,7 @@ int main(int argc, const char * argv[])
         GLFWwindow* window = glfwCreateWindow(vidMode->width, vidMode->height, PROGRAM_NAME, monitor, NULL);
         if (window)
         {
-            VkSurfaceKHR surface = vklCreateSurface(glfwGetCocoaView(window));
+			VkSurfaceKHR surface = vklCreateSurface(glfwGetNativeView(window));
             VkDevice device = vklCreateDevice(&deviceSetup, surface);
             while (!glfwWindowShouldClose(window))
             {

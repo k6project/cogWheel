@@ -35,7 +35,6 @@ typedef struct
     VkExtensionProperties* extensions;
     VkInstance instance;
     uint32_t numDevices;
-    //VkPhysicalDevice* devices;
     vklDeviceInfo_t* deviceInfo;
 } vklContext_t;
 

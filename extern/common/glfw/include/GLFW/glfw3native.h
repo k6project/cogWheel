@@ -164,6 +164,7 @@ GLFWAPI const char* glfwGetWin32Monitor(GLFWmonitor* monitor);
  *  @ingroup native
  */
 GLFWAPI HWND glfwGetWin32Window(GLFWwindow* window);
+#define glfwGetNativeView(w) glfwGetWin32Window(w)
 #endif
 
 #if defined(GLFW_EXPOSE_NATIVE_WGL)
@@ -224,6 +225,7 @@ GLFWAPI id glfwGetCocoaWindow(GLFWwindow* window);
  *  @ingroup native
  */
 GLFWAPI id glfwGetCocoaView(GLFWwindow* window);
+#define glfwGetNativeView(w) glfwGetCocoaView(w)
 #endif
 
 #if defined(GLFW_EXPOSE_NATIVE_NSGL)
