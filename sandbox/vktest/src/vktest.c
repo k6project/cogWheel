@@ -210,12 +210,10 @@ VkDevice vklCreateDevice(vklDeviceSetupProc_t setupProc, void* context)
     createInfo.ppEnabledExtensionNames = VK_REQUIRED_DEVICE_EXTENSIONS;
     createInfo.ppEnabledLayerNames = VK_REQUIRED_LAYERS;
     createInfo.enabledLayerCount = VK_NUM_REQUIRED_LAYERS;
-    if(vkCreateDevice(gpu, &createInfo, NULL, &device) == VK_SUCCESS)
-    {
+    assert(vkCreateDevice(gpu, &createInfo, NULL, &device) == VK_SUCCESS);
 #define VULKAN_API_DEVICE(proc) \
     assert(vk ## proc = ( PFN_vk ## proc )vkGetDeviceProcAddr( device, "vk" #proc ));
 #include "vkproc.inl.h"
-    }
     return device;
 }
 
@@ -236,12 +234,21 @@ void vklShutdown()
 
 /* TEST APPLICATION CODE */
 
+typedef struct
+{
+    VkSurfaceKHR surface;
+    VkSurfaceCapabilitiesKHR surfaceCaps;
+    uint32_t numPresentModes;
+    uint32_t numImgFormats;
+    VkPresentModeKHR presentModes[VK_PRESENT_MODE_RANGE_SIZE_KHR];
+    VkSurfaceFormatKHR* imgFormats;
+} vkDeviceCaps_t;
+
 VkResult deviceSetup(void* context,
                      vklDeviceSetup_t* conf,
                      const vklDeviceInfo_t* devices,
                      uint32_t numDevices)
 {
-    VkSurfaceKHR surface = (VkSurfaceKHR)context;
     conf->numQueues = 1;
     conf->queues = calloc(conf->numQueues, sizeof(VkDeviceQueueCreateInfo));
     for (uint32_t i = 0; i < numDevices; i++)
@@ -254,10 +261,18 @@ VkResult deviceSetup(void* context,
         for (uint32_t j = 0; j < info->numFamilies; j++)
         {
             VkBool32 canPresent = VK_FALSE;
+            vkDeviceCaps_t* caps = (vkDeviceCaps_t*)context;
+            VkSurfaceKHR surface = caps->surface;
             VkQueueFamilyProperties* props = &info->families[j];
             vkGetPhysicalDeviceSurfaceSupportKHR(info->handle, j, surface, &canPresent);
             if ((props->queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0 && canPresent)
             {
+                assert(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(info->handle, surface, &caps->surfaceCaps) == VK_SUCCESS);
+                assert(vkGetPhysicalDeviceSurfacePresentModesKHR(info->handle, surface, &caps->numPresentModes, NULL) == VK_SUCCESS);
+                assert(vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &caps->numImgFormats, NULL) == VK_SUCCESS);
+                caps->imgFormats = (VkSurfaceFormatKHR*)malloc(caps->numImgFormats * sizeof(VkSurfaceFormatKHR));
+                vkGetPhysicalDeviceSurfacePresentModesKHR(info->handle, surface, &caps->numPresentModes, caps->presentModes);
+                vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &caps->numImgFormats, caps->imgFormats);
                 conf->queues[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
                 conf->queues[0].queueFamilyIndex = j;
                 conf->queues[0].queueCount = 1;
@@ -277,20 +292,28 @@ int main(int argc, const char * argv[])
     vklInitialize(*argv);
     if (glfwInit())
     {
+        GLFWmonitor* monitor = NULL;
+        int width = 1280, height = 800;
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+#ifdef PROGRAM_FULLSCREEN
+        monitor = glfwGetPrimaryMonitor();
         const GLFWvidmode* vidMode = glfwGetVideoMode(monitor);
-        GLFWwindow* window = glfwCreateWindow(vidMode->width, vidMode->height, PROGRAM_NAME, monitor, NULL);
+        width = vidMode->width;
+        height = vidMode->height;
+#endif
+        GLFWwindow* window = glfwCreateWindow(width, height, PROGRAM_NAME, monitor, NULL);
         if (window)
         {
 			VkSurfaceKHR surface = vklCreateSurface(glfwGetNativeView(window));
-            VkDevice device = vklCreateDevice(&deviceSetup, surface);
+            vkDeviceCaps_t deviceCaps = { .surface = surface, .imgFormats = NULL };
+            VkDevice device = vklCreateDevice(&deviceSetup, &deviceCaps);
             while (!glfwWindowShouldClose(window))
             {
                 glfwPollEvents();
             }
             vkDestroyDevice(device, NULL);
             vklDestroySurface(surface);
+            free(deviceCaps.imgFormats);
         }
         glfwDestroyWindow(window);
         glfwTerminate();
