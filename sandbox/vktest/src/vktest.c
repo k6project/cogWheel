@@ -234,14 +234,16 @@ void vklShutdown()
 
 /* TEST APPLICATION CODE */
 
+#define VK_MAX_SURFACE_FORMATS 8u
+
 typedef struct
 {
     VkSurfaceKHR surface;
     VkSurfaceCapabilitiesKHR surfaceCaps;
     uint32_t numPresentModes;
-    uint32_t numImgFormats;
+    uint32_t numSurfFormats;
     VkPresentModeKHR presentModes[VK_PRESENT_MODE_RANGE_SIZE_KHR];
-    VkSurfaceFormatKHR* imgFormats;
+    VkSurfaceFormatKHR surfFormats[VK_MAX_SURFACE_FORMATS];
 } vkDeviceCaps_t;
 
 VkResult deviceSetup(void* context,
@@ -267,12 +269,11 @@ VkResult deviceSetup(void* context,
             vkGetPhysicalDeviceSurfaceSupportKHR(info->handle, j, surface, &canPresent);
             if ((props->queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0 && canPresent)
             {
+				caps->numSurfFormats = VK_MAX_SURFACE_FORMATS;
+				caps->numPresentModes = VK_PRESENT_MODE_RANGE_SIZE_KHR;
                 assert(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(info->handle, surface, &caps->surfaceCaps) == VK_SUCCESS);
-                assert(vkGetPhysicalDeviceSurfacePresentModesKHR(info->handle, surface, &caps->numPresentModes, NULL) == VK_SUCCESS);
-                assert(vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &caps->numImgFormats, NULL) == VK_SUCCESS);
-                caps->imgFormats = (VkSurfaceFormatKHR*)malloc(caps->numImgFormats * sizeof(VkSurfaceFormatKHR));
-                vkGetPhysicalDeviceSurfacePresentModesKHR(info->handle, surface, &caps->numPresentModes, caps->presentModes);
-                vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &caps->numImgFormats, caps->imgFormats);
+                assert(vkGetPhysicalDeviceSurfacePresentModesKHR(info->handle, surface, &caps->numPresentModes, caps->presentModes) == VK_SUCCESS);
+                assert(vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &caps->numSurfFormats, caps->surfFormats) == VK_SUCCESS);
                 conf->queues[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
                 conf->queues[0].queueFamilyIndex = j;
                 conf->queues[0].queueCount = 1;
@@ -305,7 +306,7 @@ int main(int argc, const char * argv[])
         if (window)
         {
 			VkSurfaceKHR surface = vklCreateSurface(glfwGetNativeView(window));
-            vkDeviceCaps_t deviceCaps = { .surface = surface, .imgFormats = NULL };
+            vkDeviceCaps_t deviceCaps = { .surface = surface };
             VkDevice device = vklCreateDevice(&deviceSetup, &deviceCaps);
             while (!glfwWindowShouldClose(window))
             {
@@ -313,7 +314,6 @@ int main(int argc, const char * argv[])
             }
             vkDestroyDevice(device, NULL);
             vklDestroySurface(surface);
-            free(deviceCaps.imgFormats);
         }
         glfwDestroyWindow(window);
         glfwTerminate();
