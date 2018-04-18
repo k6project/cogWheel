@@ -285,7 +285,7 @@ VkResult deviceSetup(void* context,
             }
         }
     }
-    return VK_ERROR_INITIALIZATION_FAILED;
+    return VK_NOT_READY;
 }
 
 int main(int argc, const char * argv[])
