@@ -271,9 +271,9 @@ VkResult deviceSetup(void* context,
             {
 				caps->numSurfFormats = VK_MAX_SURFACE_FORMATS;
 				caps->numPresentModes = VK_PRESENT_MODE_RANGE_SIZE_KHR;
-                assert(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(info->handle, surface, &caps->surfaceCaps) == VK_SUCCESS);
-                assert(vkGetPhysicalDeviceSurfacePresentModesKHR(info->handle, surface, &caps->numPresentModes, caps->presentModes) == VK_SUCCESS);
-                assert(vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &caps->numSurfFormats, caps->surfFormats) == VK_SUCCESS);
+                vkGetPhysicalDeviceSurfaceCapabilitiesKHR(info->handle, surface, &caps->surfaceCaps);
+                vkGetPhysicalDeviceSurfacePresentModesKHR(info->handle, surface, &caps->numPresentModes, caps->presentModes);
+                vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &caps->numSurfFormats, caps->surfFormats);
                 conf->queues[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
                 conf->queues[0].queueFamilyIndex = j;
                 conf->queues[0].queueCount = 1;
@@ -287,6 +287,22 @@ VkResult deviceSetup(void* context,
     }
     return VK_NOT_READY;
 }
+
+/*
+ 
+ vulkan10.h - loader and helper functions for vulkan library
+ vulkan10.c
+ 
+ renderer.h
+ renderer.c - application-specific implementation (can be copied over)
+ 
+ spirvlib.h
+ spirvlib.c - app-specific shaders serialized as arrays
+ 
+ frame flow: if upload job is staged, perform it, otherwise draw graphics
+             or use parallel queues to submit both
+ 
+ */
 
 int main(int argc, const char * argv[])
 {

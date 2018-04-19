@@ -1,0 +1,5 @@
+include(${CMAKE_UTILS})
+get_source_files(${CMAKE_CURRENT_LIST_DIR})
+add_library(core ${SOURCE_FILES})
+target_include_directories(core PUBLIC "${CMAKE_CURRENT_LIST_DIR}/inc")
+target_include_directories(core PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src")
