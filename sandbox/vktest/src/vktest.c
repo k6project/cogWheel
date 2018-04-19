@@ -47,7 +47,6 @@ static const uint32_t VK_NUM_REQUIRED_EXTENSIONS = sizeof(VK_REQUIRED_EXTENSIONS
 static const uint32_t VK_NUM_REQUIRED_DEVICE_EXTENSIONS = sizeof(VK_REQUIRED_DEVICE_EXTENSIONS) / sizeof(const char*);
 
 static vklContext_t vkCtx_;
-vklContext_t* const vkCtx = &vkCtx_;
 
 void vklInitialize(const char* appArg)
 {
@@ -236,6 +235,12 @@ void vklShutdown()
 
 #define VK_MAX_SURFACE_FORMATS 8u
 
+#define SHARED_MEM_BUDGET 0x04000000ul /* 64MB  */
+#define GPU_MEM_BUDGET    0x0C000000ul /* 192MB */
+
+#define SHARED_MEM_MASK (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
+#define GPU_MEM_MASK (VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+
 typedef struct
 {
     VkSurfaceKHR surface;
@@ -274,6 +279,36 @@ VkResult deviceSetup(void* context,
                 vkGetPhysicalDeviceSurfaceCapabilitiesKHR(info->handle, surface, &caps->surfaceCaps);
                 vkGetPhysicalDeviceSurfacePresentModesKHR(info->handle, surface, &caps->numPresentModes, caps->presentModes);
                 vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &caps->numSurfFormats, caps->surfFormats);
+				/* TODO: decide on surface format, presentation mode and number of buffers in swapchain */
+				/* TODO: decide on memory types according to requirements */
+
+				uint32_t sharedHeapIndex = VK_MAX_MEMORY_TYPES;
+				for (uint32_t k = 0; k < info->memory.memoryTypeCount; k++)
+				{
+					const VkMemoryType* type = &info->memory.memoryTypes[k];
+					if (((type->propertyFlags & SHARED_MEM_MASK) == SHARED_MEM_MASK)
+						/*&& info->memory.memoryHeaps[type->heapIndex].flags == VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)*/
+						&& info->memory.memoryHeaps[type->heapIndex].size >= SHARED_MEM_BUDGET)
+					{
+						sharedHeapIndex = k;
+						break;
+					}
+				}
+				for (uint32_t k = 0; k < info->memory.memoryTypeCount; k++)
+				{
+					const VkMemoryType* type = &info->memory.memoryTypes[k];
+					if (((type->propertyFlags & GPU_MEM_MASK) == GPU_MEM_MASK)
+						&& info->memory.memoryHeaps[type->heapIndex].size >= GPU_MEM_BUDGET)
+					{
+						if (k == sharedHeapIndex && info->memory.memoryHeaps[k].size >= (GPU_MEM_BUDGET + SHARED_MEM_BUDGET))
+						{
+							/*perform allocation*/
+							break;
+						}
+					}
+				}
+
+
                 conf->queues[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
                 conf->queues[0].queueFamilyIndex = j;
                 conf->queues[0].queueCount = 1;
@@ -302,7 +337,38 @@ VkResult deviceSetup(void* context,
  frame flow: if upload job is staged, perform it, otherwise draw graphics
              or use parallel queues to submit both
  
+ initial values for memory budgets: 64 mb staging (cpu coherent), 192 mb device local
+
  */
+
+void gfxInitMemoryBudgets(VkDevice device, 
+						  uint32_t graphicsQueueFamily, 
+						  uint32_t transferQueueFamily)
+{
+	VkBuffer sharedMem, gpuMem;
+	VkBufferCreateInfo bufferInfo;
+	VkMemoryRequirements memRequirements;
+	memset(&bufferInfo, 0, sizeof(VkBufferCreateInfo));
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.size = SHARED_MEM_BUDGET;
+	bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+	if (graphicsQueueFamily != transferQueueFamily)
+	{
+		uint32_t families[] = {graphicsQueueFamily, transferQueueFamily};
+		bufferInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
+		bufferInfo.queueFamilyIndexCount = 2;
+		bufferInfo.pQueueFamilyIndices = families;
+	}
+	else
+	{
+		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		bufferInfo.queueFamilyIndexCount = 1;
+		bufferInfo.pQueueFamilyIndices = &graphicsQueueFamily;
+	}
+	assert(vkCreateBuffer(device, &bufferInfo, NULL, &sharedMem) == VK_SUCCESS);
+	vkGetBufferMemoryRequirements(device, sharedMem, &memRequirements);
+
+}
 
 int main(int argc, const char * argv[])
 {
