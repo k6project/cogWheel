@@ -45,3 +45,9 @@ void vklDestroySurface(VkSurfaceKHR);
 typedef VkResult (*vklDeviceSetupProc_t)(void*, vklDeviceSetup_t*, const vklDeviceInfo_t*, uint32_t);
 
 VkDevice vklCreateDevice(vklDeviceSetupProc_t, void*);
+
+VkResult vklMemAlloc(VkDevice device,
+	const VkPhysicalDeviceMemoryProperties* props,
+	const VkMemoryRequirements* reqs,
+	const VkMemoryPropertyFlags flags,
+	VkDeviceMemory* memory);

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
 #include <windows.h>
 #else
@@ -252,9 +253,9 @@ typedef struct
 } vkDeviceCaps_t;
 
 VkResult deviceSetup(void* context,
-                     vklDeviceSetup_t* conf,
-                     const vklDeviceInfo_t* devices,
-                     uint32_t numDevices)
+    vklDeviceSetup_t* conf,
+	const vklDeviceInfo_t* devices,
+	uint32_t numDevices)
 {
     conf->numQueues = 1;
     conf->queues = calloc(conf->numQueues, sizeof(VkDeviceQueueCreateInfo));
@@ -323,6 +324,33 @@ VkResult deviceSetup(void* context,
     return VK_NOT_READY;
 }
 
+VkResult vklMemAlloc(VkDevice device,
+	const VkPhysicalDeviceMemoryProperties* props,
+	const VkMemoryRequirements* reqs,
+	const VkMemoryPropertyFlags flags,
+	VkDeviceMemory* memory)
+{
+	uint32_t type = VK_MAX_MEMORY_TYPES;
+	for (uint32_t i = 0; i < props->memoryTypeCount; i++)
+	{
+		if ((reqs->memoryTypeBits & (1 << i)) && ((props->memoryTypes[i].propertyFlags & flags) == flags))
+		{
+			type = i;
+			break;
+		}
+	}
+	if (type < props->memoryTypeCount)
+	{
+		VkMemoryAllocateInfo allocInfo;
+		memset(&allocInfo, 0, sizeof(allocInfo));
+		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		allocInfo.allocationSize = reqs->size;
+		allocInfo.memoryTypeIndex = type;
+		return vkAllocateMemory(device, &allocInfo, NULL, memory);
+	}
+	return VK_NOT_READY;
+}
+
 /*
  
  vulkan10.h - loader and helper functions for vulkan library
@@ -341,33 +369,103 @@ VkResult deviceSetup(void* context,
 
  */
 
-void gfxInitMemoryBudgets(VkDevice device, 
-						  uint32_t graphicsQueueFamily, 
-						  uint32_t transferQueueFamily)
+typedef enum
 {
-	VkBuffer sharedMem, gpuMem;
-	VkBufferCreateInfo bufferInfo;
-	VkMemoryRequirements memRequirements;
-	memset(&bufferInfo, 0, sizeof(VkBufferCreateInfo));
-	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	bufferInfo.size = SHARED_MEM_BUDGET;
-	bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-	if (graphicsQueueFamily != transferQueueFamily)
-	{
-		uint32_t families[] = {graphicsQueueFamily, transferQueueFamily};
-		bufferInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
-		bufferInfo.queueFamilyIndexCount = 2;
-		bufferInfo.pQueueFamilyIndices = families;
-	}
-	else
-	{
-		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		bufferInfo.queueFamilyIndexCount = 1;
-		bufferInfo.pQueueFamilyIndices = &graphicsQueueFamily;
-	}
-	assert(vkCreateBuffer(device, &bufferInfo, NULL, &sharedMem) == VK_SUCCESS);
-	vkGetBufferMemoryRequirements(device, sharedMem, &memRequirements);
+	GFX_FORMAT_BRGA8 = VK_FORMAT_B8G8R8A8_UNORM,
+	GFX_FORMAT_D24S8 = VK_FORMAT_D24_UNORM_S8_UINT,
+	GFX_DEFAULT_COLOR_FORMAT = GFX_FORMAT_BRGA8,
+	GFX_DEFAULT_DEPTH_STENCIL_FORMAT = GFX_FORMAT_D24S8
+} gfxDataFormat_t;
 
+typedef struct
+{
+	VkDevice device;
+	VkSurfaceKHR surface;
+	VkPhysicalDeviceMemoryProperties memProps;
+} gfxContext_t;
+
+typedef struct  
+{
+	VkImage image;
+	VkImageView handle;
+	VkDeviceMemory memory;
+	uint32_t width        :16;
+	uint32_t height       :16;
+	gfxDataFormat_t format:25;
+	uint32_t numMips      : 4;
+	bool renderTarget	  : 1;
+	bool sampledTexture	  : 1;
+	bool ownGpuMem        : 1;
+} gfxTexture_t;
+
+VkResult gfxCreateTexture(gfxContext_t* gfx, gfxTexture_t* texture)
+{
+	assert(!texture->handle);
+	assert(texture->width >= 1);
+	assert(texture->height >= 1);
+	if (texture->numMips < 1 || texture->renderTarget)
+	{
+		texture->numMips = 1;
+	}
+	if (!texture->image)
+	{
+		VkImageCreateInfo imageInfo;
+		memset(&imageInfo, 0, sizeof(imageInfo));
+		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		imageInfo.imageType = VK_IMAGE_TYPE_2D;
+		imageInfo.extent.depth = 1;
+		imageInfo.arrayLayers = 1;
+		imageInfo.extent.width = texture->width;
+		imageInfo.extent.height = texture->height;
+		imageInfo.format = texture->format; 
+		imageInfo.mipLevels = texture->numMips;
+		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		if (texture->renderTarget)
+		{
+			switch (texture->format)
+			{
+			case GFX_FORMAT_D24S8:
+				imageInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+				break;
+			default:
+				imageInfo.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+				break;
+			}
+		}
+		if (texture->sampledTexture)
+		{
+			imageInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+		}
+		assert(vkCreateImage(gfx->device, &imageInfo, NULL, &texture->image) == VK_SUCCESS);
+		VkMemoryRequirements memReqs;
+		vkGetImageMemoryRequirements(gfx->device, texture->image, &memReqs);
+		assert(vklMemAlloc(gfx->device, 
+			&gfx->memProps, 
+			&memReqs, 
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
+			&texture->memory) == VK_SUCCESS);
+		texture->ownGpuMem = true;
+	}
+	VkImageViewCreateInfo viewInfo;
+	memset(&viewInfo, 0, sizeof(viewInfo));
+	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	viewInfo.format = texture->format;
+	switch (texture->format)
+	{
+	case GFX_FORMAT_D24S8:
+		viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+		break;
+	default:
+		viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		break;
+	}
+	viewInfo.subresourceRange.baseMipLevel = 0;
+	viewInfo.subresourceRange.levelCount = 1;
+	viewInfo.subresourceRange.baseArrayLayer = 0;
+	viewInfo.subresourceRange.layerCount = 1;
+	viewInfo.image = texture->image;
+	return vkCreateImageView(gfx->device, &viewInfo, NULL, &texture->handle);
 }
 
 int main(int argc, const char * argv[])
