@@ -217,113 +217,6 @@ VkDevice vklCreateDevice(vklDeviceSetupProc_t setupProc, void* context)
     return device;
 }
 
-void vklShutdown()
-{
-    if (vkCtx_.dll)
-    {
-#ifdef VK_USE_PLATFORM_WIN32_KHR
-		FreeLibrary(vkCtx_.dll);
-#else
-        dlclose(vkCtx_.dll);
-#endif
-    }
-    free(vkCtx_.deviceInfo);
-    free(vkCtx_.extensions);
-    free(vkCtx_.layers);
-}
-
-/* TEST APPLICATION CODE */
-
-#define VK_MAX_SURFACE_FORMATS 8u
-
-#define SHARED_MEM_BUDGET 0x04000000ul /* 64MB  */
-#define GPU_MEM_BUDGET    0x0C000000ul /* 192MB */
-
-#define SHARED_MEM_MASK (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-#define GPU_MEM_MASK (VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-
-typedef struct
-{
-    VkSurfaceKHR surface;
-    VkSurfaceCapabilitiesKHR surfaceCaps;
-    uint32_t numPresentModes;
-    uint32_t numSurfFormats;
-    VkPresentModeKHR presentModes[VK_PRESENT_MODE_RANGE_SIZE_KHR];
-    VkSurfaceFormatKHR surfFormats[VK_MAX_SURFACE_FORMATS];
-} vkDeviceCaps_t;
-
-VkResult deviceSetup(void* context,
-    vklDeviceSetup_t* conf,
-	const vklDeviceInfo_t* devices,
-	uint32_t numDevices)
-{
-    conf->numQueues = 1;
-    conf->queues = calloc(conf->numQueues, sizeof(VkDeviceQueueCreateInfo));
-    for (uint32_t i = 0; i < numDevices; i++)
-    {
-        const vklDeviceInfo_t* info = &devices[i];
-        if (info->properties.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
-        {
-            continue;
-        }
-        for (uint32_t j = 0; j < info->numFamilies; j++)
-        {
-            VkBool32 canPresent = VK_FALSE;
-            vkDeviceCaps_t* caps = (vkDeviceCaps_t*)context;
-            VkSurfaceKHR surface = caps->surface;
-            VkQueueFamilyProperties* props = &info->families[j];
-            vkGetPhysicalDeviceSurfaceSupportKHR(info->handle, j, surface, &canPresent);
-            if ((props->queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0 && canPresent)
-            {
-				caps->numSurfFormats = VK_MAX_SURFACE_FORMATS;
-				caps->numPresentModes = VK_PRESENT_MODE_RANGE_SIZE_KHR;
-                vkGetPhysicalDeviceSurfaceCapabilitiesKHR(info->handle, surface, &caps->surfaceCaps);
-                vkGetPhysicalDeviceSurfacePresentModesKHR(info->handle, surface, &caps->numPresentModes, caps->presentModes);
-                vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &caps->numSurfFormats, caps->surfFormats);
-				/* TODO: decide on surface format, presentation mode and number of buffers in swapchain */
-				/* TODO: decide on memory types according to requirements */
-
-				uint32_t sharedHeapIndex = VK_MAX_MEMORY_TYPES;
-				for (uint32_t k = 0; k < info->memory.memoryTypeCount; k++)
-				{
-					const VkMemoryType* type = &info->memory.memoryTypes[k];
-					if (((type->propertyFlags & SHARED_MEM_MASK) == SHARED_MEM_MASK)
-						/*&& info->memory.memoryHeaps[type->heapIndex].flags == VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)*/
-						&& info->memory.memoryHeaps[type->heapIndex].size >= SHARED_MEM_BUDGET)
-					{
-						sharedHeapIndex = k;
-						break;
-					}
-				}
-				for (uint32_t k = 0; k < info->memory.memoryTypeCount; k++)
-				{
-					const VkMemoryType* type = &info->memory.memoryTypes[k];
-					if (((type->propertyFlags & GPU_MEM_MASK) == GPU_MEM_MASK)
-						&& info->memory.memoryHeaps[type->heapIndex].size >= GPU_MEM_BUDGET)
-					{
-						if (k == sharedHeapIndex && info->memory.memoryHeaps[k].size >= (GPU_MEM_BUDGET + SHARED_MEM_BUDGET))
-						{
-							/*perform allocation*/
-							break;
-						}
-					}
-				}
-
-
-                conf->queues[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-                conf->queues[0].queueFamilyIndex = j;
-                conf->queues[0].queueCount = 1;
-                conf->queues[0].pQueuePriorities = calloc(1, sizeof(float));
-                conf->index = i;
-                conf->gfxQueue = 0;
-                conf->presentQueue = 0;
-                return VK_SUCCESS;
-            }
-        }
-    }
-    return VK_NOT_READY;
-}
-
 VkResult vklMemAlloc(VkDevice device,
 	const VkPhysicalDeviceMemoryProperties* props,
 	const VkMemoryRequirements* reqs,
@@ -350,6 +243,31 @@ VkResult vklMemAlloc(VkDevice device,
 	}
 	return VK_NOT_READY;
 }
+
+void vklShutdown()
+{
+    if (vkCtx_.dll)
+    {
+#ifdef VK_USE_PLATFORM_WIN32_KHR
+		FreeLibrary(vkCtx_.dll);
+#else
+        dlclose(vkCtx_.dll);
+#endif
+    }
+    free(vkCtx_.deviceInfo);
+    free(vkCtx_.extensions);
+    free(vkCtx_.layers);
+}
+
+/* TEST APPLICATION CODE */
+
+#define VK_MAX_SURFACE_FORMATS 8u
+
+#define SHARED_MEM_BUDGET 0x04000000ul /* 64MB  */
+#define GPU_MEM_BUDGET    0x0C000000ul /* 192MB */
+
+#define SHARED_MEM_MASK (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
+#define GPU_MEM_MASK (VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
 
 /*
  
@@ -391,12 +309,61 @@ typedef struct
 	VkDeviceMemory memory;
 	uint32_t width        :16;
 	uint32_t height       :16;
-	gfxDataFormat_t format:25;
+	gfxDataFormat_t format:24;
 	uint32_t numMips      : 4;
 	bool renderTarget	  : 1;
 	bool sampledTexture	  : 1;
 	bool ownGpuMem        : 1;
+	bool hasPendingData   : 1;
+	void* imageData;
+	size_t imageDataSize;
 } gfxTexture_t;
+
+VkResult gfxDeviceSetupCallback(void* context,
+	vklDeviceSetup_t* conf,
+	const vklDeviceInfo_t* devices,
+	uint32_t numDevices)
+{
+	conf->numQueues = 1;
+	conf->queues = calloc(conf->numQueues, sizeof(VkDeviceQueueCreateInfo));
+	for (uint32_t i = 0; i < numDevices; i++)
+	{
+		const vklDeviceInfo_t* info = &devices[i];
+		if (info->properties.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+		{
+			continue;
+		}
+		for (uint32_t j = 0; j < info->numFamilies; j++)
+		{
+			VkBool32 canPresent = VK_FALSE;
+			/*vkDeviceCaps_t* caps = (vkDeviceCaps_t*)context;*/
+			gfxContext_t* gfx = (gfxContext_t*)context;
+			VkSurfaceKHR surface = gfx->surface;
+			VkQueueFamilyProperties* props = &info->families[j];
+			vkGetPhysicalDeviceSurfaceSupportKHR(info->handle, j, surface, &canPresent);
+			if ((props->queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0 && canPresent)
+			{
+				gfx->memProps = info->memory;
+				/*caps->numSurfFormats = VK_MAX_SURFACE_FORMATS;
+				caps->numPresentModes = VK_PRESENT_MODE_RANGE_SIZE_KHR;
+				vkGetPhysicalDeviceSurfaceCapabilitiesKHR(info->handle, surface, &caps->surfaceCaps);
+				vkGetPhysicalDeviceSurfacePresentModesKHR(info->handle, surface, &caps->numPresentModes, caps->presentModes);
+				vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &caps->numSurfFormats, caps->surfFormats);*/
+				/* TODO: decide on surface format, presentation mode and number of buffers in swapchain */
+				/* TODO: decide on memory types according to requirements */
+				conf->queues[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+				conf->queues[0].queueFamilyIndex = j;
+				conf->queues[0].queueCount = 1;
+				conf->queues[0].pQueuePriorities = calloc(1, sizeof(float));
+				conf->index = i;
+				conf->gfxQueue = 0;
+				conf->presentQueue = 0;
+				return VK_SUCCESS;
+			}
+		}
+	}
+	return VK_NOT_READY;
+}
 
 VkResult gfxCreateTexture(gfxContext_t* gfx, gfxTexture_t* texture)
 {
@@ -445,10 +412,12 @@ VkResult gfxCreateTexture(gfxContext_t* gfx, gfxTexture_t* texture)
 			&memReqs, 
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
 			&texture->memory) == VK_SUCCESS);
+		assert(vkBindImageMemory(gfx->device, texture->image, texture->memory, 0) == VK_SUCCESS);
 		texture->ownGpuMem = true;
 	}
 	VkImageViewCreateInfo viewInfo;
 	memset(&viewInfo, 0, sizeof(viewInfo));
+	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 	viewInfo.format = texture->format;
 	switch (texture->format)
@@ -468,6 +437,20 @@ VkResult gfxCreateTexture(gfxContext_t* gfx, gfxTexture_t* texture)
 	return vkCreateImageView(gfx->device, &viewInfo, NULL, &texture->handle);
 }
 
+void gfxDestroyTexture(gfxContext_t* gfx, gfxTexture_t* texture)
+{
+	vkDestroyImageView(gfx->device, texture->handle, NULL);
+	vkDestroyImage(gfx->device, texture->image, NULL);
+	if (texture->ownGpuMem)
+	{
+		vkFreeMemory(gfx->device, texture->memory, NULL);
+		texture->ownGpuMem = false;
+	}
+	texture->handle = NULL;
+	texture->image = NULL;
+	texture->memory = NULL;
+}
+
 int main(int argc, const char * argv[])
 {
     vklInitialize(*argv);
@@ -485,15 +468,24 @@ int main(int argc, const char * argv[])
         GLFWwindow* window = glfwCreateWindow(width, height, PROGRAM_NAME, monitor, NULL);
         if (window)
         {
-			VkSurfaceKHR surface = vklCreateSurface(glfwGetNativeView(window));
-            vkDeviceCaps_t deviceCaps = { .surface = surface };
-            VkDevice device = vklCreateDevice(&deviceSetup, &deviceCaps);
+			gfxContext_t gfx;
+			gfx.surface = vklCreateSurface(glfwGetNativeView(window));
+			gfx.device = vklCreateDevice(&gfxDeviceSetupCallback, &gfx);
+
+			gfxTexture_t tex;
+			memset(&tex, 0, sizeof(tex));
+			tex.format = GFX_DEFAULT_COLOR_FORMAT;
+			tex.width = 512;
+			tex.height = 512;
+			tex.renderTarget = true;
+			assert(gfxCreateTexture(&gfx, &tex) == VK_SUCCESS);
             while (!glfwWindowShouldClose(window))
             {
                 glfwPollEvents();
             }
-            vkDestroyDevice(device, NULL);
-            vklDestroySurface(surface);
+			gfxDestroyTexture(&gfx, &tex);
+            vkDestroyDevice(gfx.device, NULL);
+            vklDestroySurface(gfx.surface);
         }
         glfwDestroyWindow(window);
         glfwTerminate();
