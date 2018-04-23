@@ -3,7 +3,10 @@
 
 #include <GLFW/glfw3.h>
 
+#include <core/math.h>
+
 #include "renderer.h"
+#include "patterns.h"
 
 
 /* TEST APPLICATION CODE */
@@ -68,11 +71,13 @@ int main(int argc, const char * argv[])
 
 			gfxTexture_t tex;
 			memset(&tex, 0, sizeof(tex));
+            checkerboard(512, 512, &tex.imageData, &tex.imageDataSize);
 			tex.format = GFX_DEFAULT_COLOR_FORMAT;
 			tex.width = 512;
 			tex.height = 512;
 			tex.renderTarget = true;
 			assert(gfxCreateTexture(&gfx, &tex) == VK_SUCCESS);
+            
             while (!glfwWindowShouldClose(window))
             {
                 glfwPollEvents();

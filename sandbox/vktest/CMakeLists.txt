@@ -12,5 +12,6 @@ elseif(WIN32)
     target_compile_definitions(vktest PRIVATE GLFW_EXPOSE_NATIVE_WIN32)
 endif()
 target_link_libraries(vktest "glfw")
+target_link_libraries(vktest core)
 
 add_vulkan_sdk(vktest)

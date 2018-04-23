@@ -5,13 +5,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define VK_MAX_SURFACE_FORMATS 8u
-
-#define SHARED_MEM_BUDGET 0x04000000ul /* 64MB  */
-#define GPU_MEM_BUDGET    0x0C000000ul /* 192MB */
-
-#define SHARED_MEM_MASK (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-#define GPU_MEM_MASK (VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+#include <core/math.h>
 
 typedef enum
 {
@@ -39,8 +33,8 @@ typedef struct
     uint32_t height       :16;
     gfxDataFormat_t format:24;
     uint32_t numMips      : 4;
-    bool renderTarget      : 1;
-    bool sampledTexture      : 1;
+    bool renderTarget     : 1;
+    bool sampledTexture   : 1;
     bool ownGpuMem        : 1;
     bool hasPendingData   : 1;
     void* imageData;
