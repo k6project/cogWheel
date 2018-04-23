@@ -71,25 +71,24 @@ int main(int argc, const char * argv[])
 			gfxContext_t gfx;
             memset(&gfx, 0, sizeof(gfx));
             assert(gfxCreateDevice(&gfx, window) == VK_SUCCESS);
-
 			gfxTexture_t tex;
 			memset(&tex, 0, sizeof(tex));
-            checkerboard(512, 512, &tex.imageData, &tex.imageDataSize);
-			tex.format = GFX_FORMAT_GRAYSCALE;
 			tex.width = width;
 			tex.height = height;
-			tex.hasPendingData = true;
-			tex.sampledTexture = true;
+            checkerboard(&tex);
 			assert(gfxCreateTexture(&gfx, &tex) == VK_SUCCESS);
-            
             while (!glfwWindowShouldClose(window))
-            {
+            {   /*beginframe*/
 				if (tex.hasPendingData)
 				{
+                    /*stagedata (copy)*/
+                    
 					/*upload data via staging buffer*/
 					/* each upload request copies to a portion of staging buffer and adds a copy command to a list */
 					/* when staging buffer is full: if more uploads pending, blit a copy of previous frame, otherwise draw */
 				}
+                /*blit to gfx->backBuffer (transition resources, do blit)*/
+                /*endframe (transition backbuffer to present)*/
                 glfwPollEvents();
             }
             

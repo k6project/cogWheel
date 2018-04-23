@@ -7,7 +7,7 @@
 
 #include <core/math.h>
 
-typedef enum
+typedef enum gfxDataFormat_t
 {
     GFX_FORMAT_BRGA8 = VK_FORMAT_B8G8R8A8_UNORM,
     GFX_FORMAT_D24S8 = VK_FORMAT_D24_UNORM_S8_UINT,
@@ -16,7 +16,7 @@ typedef enum
     GFX_DEFAULT_DEPTH_STENCIL_FORMAT = GFX_FORMAT_D24S8
 } gfxDataFormat_t;
 
-typedef struct
+typedef struct gfxBuffer_t
 {
 	VkBuffer handle;
 	VkDeviceMemory memory;
@@ -30,7 +30,7 @@ typedef struct
 	bool ownGpuMem : 1;
 } gfxBuffer_t;
 
-typedef struct
+typedef struct gfxTexture_t
 {
     VkImage image;
     VkImageView handle;
@@ -47,7 +47,7 @@ typedef struct
     size_t imageDataSize;
 } gfxTexture_t;
 
-typedef struct
+typedef struct gfxContext_t
 {
 	VkDevice device;
 	VkSurfaceKHR surface;
