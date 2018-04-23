@@ -26,7 +26,7 @@ void checkerboard(int w, int h, void** outMem, size_t* outSize)
     }
     size_t cols = w / step, ppr = step * cols;
     *outSize = ppr * rows * step;
-    char* mem = (*outMem) ? (char*)malloc(*outSize) : (char*)(*outMem);
+    char* mem = (!*outMem) ? (char*)malloc(*outSize) : (char*)(*outMem);
     for (size_t i = 0; i < *outSize; i++)
     {
         size_t tmp = i % ppr;
@@ -35,4 +35,5 @@ void checkerboard(int w, int h, void** outMem, size_t* outSize)
         size_t token = (col & 1) + (row & 1);
         mem[i] = (token & 1) * 0xff;
     }
+	*outMem = mem;
 }

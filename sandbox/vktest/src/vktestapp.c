@@ -1,6 +1,9 @@
 #include <assert.h>
 #include <string.h>
 
+#ifdef WIN32
+#include <windows.h>
+#endif
 #include <GLFW/glfw3.h>
 
 #include <core/math.h>
@@ -72,14 +75,21 @@ int main(int argc, const char * argv[])
 			gfxTexture_t tex;
 			memset(&tex, 0, sizeof(tex));
             checkerboard(512, 512, &tex.imageData, &tex.imageDataSize);
-			tex.format = GFX_DEFAULT_COLOR_FORMAT;
-			tex.width = 512;
-			tex.height = 512;
-			tex.renderTarget = true;
+			tex.format = GFX_FORMAT_GRAYSCALE;
+			tex.width = width;
+			tex.height = height;
+			tex.hasPendingData = true;
+			tex.sampledTexture = true;
 			assert(gfxCreateTexture(&gfx, &tex) == VK_SUCCESS);
             
             while (!glfwWindowShouldClose(window))
             {
+				if (tex.hasPendingData)
+				{
+					/*upload data via staging buffer*/
+					/* each upload request copies to a portion of staging buffer and adds a copy command to a list */
+					/* when staging buffer is full: if more uploads pending, blit a copy of previous frame, otherwise draw */
+				}
                 glfwPollEvents();
             }
             

@@ -1,7 +1,12 @@
 #include "renderer.h"
 
+#include <stdlib.h>
+#include <assert.h>
+
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
+
+#define GFX_STAGING_BUFFER_SIZE (16u << 20)
 
 static VkResult gfxDeviceSetupCallback(void* context,
     vklDeviceSetup_t* conf,
@@ -48,19 +53,42 @@ static VkResult gfxDeviceSetupCallback(void* context,
     return VK_NOT_READY;
 }
 
-VkResult gfxCreateDevice(gfxContext_t* gfx, GLFWwindow* window)
+VkResult gfxCreateBuffer(gfxContext_t* gfx, gfxBuffer_t* buffer)
 {
-    gfx->surface = vklCreateSurface(glfwGetNativeView(window));
-    gfx->device = vklCreateDevice(&gfxDeviceSetupCallback, gfx);
-    return VK_SUCCESS;
+	VkBufferCreateInfo createInfo;
+	memset(&createInfo, 0, sizeof(createInfo));
+	createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	createInfo.usage |= (buffer->upload) ? VK_BUFFER_USAGE_TRANSFER_SRC_BIT : VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+	createInfo.usage |= (buffer->uniform) ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT : 0;
+	createInfo.usage |= (buffer->vertex) ? VK_BUFFER_USAGE_VERTEX_BUFFER_BIT : 0;
+	createInfo.usage |= (buffer->index) ? VK_BUFFER_USAGE_INDEX_BUFFER_BIT : 0;
+	createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	createInfo.size = buffer->size;
+	if (vkCreateBuffer(gfx->device, &createInfo, NULL, &buffer->handle) == VK_SUCCESS)
+	{
+		VkMemoryRequirements memReqs;
+		vkGetBufferMemoryRequirements(gfx->device, buffer->handle, &memReqs);
+		assert(vklMemAlloc(gfx->device,
+			&gfx->memProps,
+			&memReqs,
+			(buffer->upload) 
+				? (VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) 
+				: VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			&buffer->memory) == VK_SUCCESS);
+		buffer->ownGpuMem = true;
+		return vkBindBufferMemory(gfx->device, buffer->handle, buffer->memory, 0);
+	}
+	return VK_NOT_READY;
 }
 
-void gfxDestroyDevice(gfxContext_t* gfx)
+void gfxDestroyBuffer(gfxContext_t* gfx, gfxBuffer_t* buffer)
 {
-    vkDestroyDevice(gfx->device, NULL);
-    vklDestroySurface(gfx->surface);
-    gfx->surface = NULL;
-    gfx->device = NULL;
+	vkDestroyBuffer(gfx->device, buffer->handle, NULL);
+	if (buffer->ownGpuMem)
+	{
+		vkFreeMemory(gfx->device, buffer->memory, NULL);
+		buffer->ownGpuMem = false;
+	}
 }
 
 VkResult gfxCreateTexture(gfxContext_t* gfx, gfxTexture_t* texture)
@@ -106,10 +134,10 @@ VkResult gfxCreateTexture(gfxContext_t* gfx, gfxTexture_t* texture)
         VkMemoryRequirements memReqs;
         vkGetImageMemoryRequirements(gfx->device, texture->image, &memReqs);
         assert(vklMemAlloc(gfx->device,
-                           &gfx->memProps,
-                           &memReqs,
-                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                           &texture->memory) == VK_SUCCESS);
+			&gfx->memProps,
+            &memReqs,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            &texture->memory) == VK_SUCCESS);
         assert(vkBindImageMemory(gfx->device, texture->image, texture->memory, 0) == VK_SUCCESS);
         texture->ownGpuMem = true;
     }
@@ -147,4 +175,26 @@ void gfxDestroyTexture(gfxContext_t* gfx, gfxTexture_t* texture)
     texture->handle = NULL;
     texture->image = NULL;
     texture->memory = NULL;
+}
+
+VkResult gfxCreateDevice(gfxContext_t* gfx, GLFWwindow* window)
+{
+	gfx->surface = vklCreateSurface(glfwGetNativeView(window));
+	gfx->device = vklCreateDevice(&gfxDeviceSetupCallback, gfx);
+	if (gfx->surface && gfx->device)
+	{
+		gfx->stagingBuffer.upload = true;
+		gfx->stagingBuffer.size = GFX_STAGING_BUFFER_SIZE;
+		return gfxCreateBuffer(gfx, &gfx->stagingBuffer);
+	}
+	return VK_NOT_READY;
+}
+
+void gfxDestroyDevice(gfxContext_t* gfx)
+{
+	gfxDestroyBuffer(gfx, &gfx->stagingBuffer);
+	vkDestroyDevice(gfx->device, NULL);
+	vklDestroySurface(gfx->surface);
+	gfx->surface = NULL;
+	gfx->device = NULL;
 }
