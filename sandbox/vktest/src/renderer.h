@@ -52,8 +52,9 @@ typedef struct gfxContext_t
 	VkDevice device;
 	VkSurfaceKHR surface;
 	VkPhysicalDeviceMemoryProperties memProps;
-	VkQueue drawQueue, transferQueue;
-	VkCommandBuffer cmdBuffer;
+	uint32_t queueFamily;
+	VkQueue cmdQueue;
+	VkCommandPool cmdPool;
 	gfxBuffer_t stagingBuffer;
 } gfxContext_t;
 

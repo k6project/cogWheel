@@ -23,8 +23,8 @@ typedef struct
 {
     uint32_t index;
     uint32_t numQueues;
-    uint32_t gfxQueue;
-    uint32_t presentQueue;
+    //uint32_t gfxQueue;
+    //uint32_t presentQueue;
     VkDeviceQueueCreateInfo* queues;
 } vklDeviceSetup_t;
 

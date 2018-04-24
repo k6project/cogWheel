@@ -32,21 +32,18 @@ static VkResult gfxDeviceSetupCallback(void* context,
             uint32_t queueMask = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_TRANSFER_BIT;
             if ((props->queueFlags & queueMask) == queueMask && canPresent)
             {
+				gfx->queueFamily = j;
                 gfx->memProps = info->memory;
                 /*caps->numSurfFormats = VK_MAX_SURFACE_FORMATS;
                  caps->numPresentModes = VK_PRESENT_MODE_RANGE_SIZE_KHR;
                  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(info->handle, surface, &caps->surfaceCaps);
                  vkGetPhysicalDeviceSurfacePresentModesKHR(info->handle, surface, &caps->numPresentModes, caps->presentModes);
                  vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &caps->numSurfFormats, caps->surfFormats);*/
-                /* TODO: decide on surface format, presentation mode and number of buffers in swapchain */
-                /* TODO: decide on memory types according to requirements */
                 conf->queues[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
                 conf->queues[0].queueFamilyIndex = j;
                 conf->queues[0].queueCount = 1;
                 conf->queues[0].pQueuePriorities = calloc(1, sizeof(float));
                 conf->index = i;
-                conf->gfxQueue = 0;
-                conf->presentQueue = 0;
                 return VK_SUCCESS;
             }
         }
@@ -182,28 +179,30 @@ VkResult gfxCreateDevice(gfxContext_t* gfx, GLFWwindow* window)
 {
 	gfx->surface = vklCreateSurface(glfwGetNativeView(window));
 	gfx->device = vklCreateDevice(&gfxDeviceSetupCallback, gfx);
-	if (gfx->surface && gfx->device)
-	{
-        /* todo: create swapchain, command queues, pools and buffers */
-		gfx->stagingBuffer.upload = true;
-		gfx->stagingBuffer.size = GFX_STAGING_BUFFER_SIZE;
-		if (gfxCreateBuffer(gfx, &gfx->stagingBuffer) == VK_SUCCESS)
-        {
-            return vkMapMemory(gfx->device,
-                gfx->stagingBuffer.memory,
-                0,
-                gfx->stagingBuffer.size,
-                0,
-                &gfx->stagingBuffer.hostPtr);
-        }
-	}
-	return VK_NOT_READY;
+	assert(gfx->surface && gfx->device);
+	vkGetDeviceQueue(gfx->device, gfx->queueFamily, 0, &gfx->cmdQueue);
+	VkCommandPoolCreateInfo poolCreateInfo;
+	memset(&poolCreateInfo, 0, sizeof(poolCreateInfo));
+	poolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	poolCreateInfo.queueFamilyIndex = gfx->queueFamily;
+	assert(vkCreateCommandPool(gfx->device, &poolCreateInfo, NULL, &gfx->cmdPool) == VK_SUCCESS);
+	/* todo: create swapchain, command buffers (one per swapchain image) */
+	gfx->stagingBuffer.upload = true;
+	gfx->stagingBuffer.size = GFX_STAGING_BUFFER_SIZE;
+	assert(gfxCreateBuffer(gfx, &gfx->stagingBuffer) == VK_SUCCESS);
+	return vkMapMemory(gfx->device,
+		gfx->stagingBuffer.memory,
+		0,
+		gfx->stagingBuffer.size,
+		0,
+		&gfx->stagingBuffer.hostPtr);
 }
 
 void gfxDestroyDevice(gfxContext_t* gfx)
 {
     vkUnmapMemory(gfx->device, gfx->stagingBuffer.memory);
 	gfxDestroyBuffer(gfx, &gfx->stagingBuffer);
+	vkDestroyCommandPool(gfx->device, gfx->cmdPool, NULL);
 	vkDestroyDevice(gfx->device, NULL);
 	vklDestroySurface(gfx->surface);
 	gfx->surface = NULL;

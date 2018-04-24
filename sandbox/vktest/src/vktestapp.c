@@ -91,6 +91,13 @@ int main(int argc, const char * argv[])
 				}
                 /*blit to gfx->backBuffer (transition resources, do blit)*/
                 /*endframe (transition backbuffer to present)*/
+
+				/*
+					vkCmdPipelineBarrier on framebuffer to become transfer_dst
+					vkCmdClearColorImage on framebuffer (initially) or blit(final)
+					vkCmdPipelineBarrier on framebuffer to become present_khr
+				*/
+
                 gfxEndFrame(&gfx);
                 glfwPollEvents();
             }
