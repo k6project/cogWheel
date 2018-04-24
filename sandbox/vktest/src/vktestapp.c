@@ -78,9 +78,11 @@ int main(int argc, const char * argv[])
             checkerboard(&tex);
 			assert(gfxCreateTexture(&gfx, &tex) == VK_SUCCESS);
             while (!glfwWindowShouldClose(window))
-            {   /*beginframe*/
+            {
+                gfxBeginFrame(&gfx);
 				if (tex.hasPendingData)
 				{
+                    memcpy(gfx.stagingBuffer.hostPtr, tex.imageData, tex.imageDataSize);
                     /*stagedata (copy)*/
                     
 					/*upload data via staging buffer*/
@@ -89,9 +91,9 @@ int main(int argc, const char * argv[])
 				}
                 /*blit to gfx->backBuffer (transition resources, do blit)*/
                 /*endframe (transition backbuffer to present)*/
+                gfxEndFrame(&gfx);
                 glfwPollEvents();
             }
-            
 			gfxDestroyTexture(&gfx, &tex);
             gfxDestroyDevice(&gfx);
         }

@@ -70,3 +70,7 @@ void gfxDestroyTexture(gfxContext_t* gfx, gfxTexture_t* texture);
 VkResult gfxCreateDevice(gfxContext_t* gfx, struct GLFWwindow* window);
 
 void gfxDestroyDevice(gfxContext_t* gfx);
+
+void gfxBeginFrame(gfxContext_t* gfx);
+
+void gfxEndFrame(gfxContext_t* gfx);

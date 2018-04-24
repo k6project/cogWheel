@@ -29,7 +29,8 @@ static VkResult gfxDeviceSetupCallback(void* context,
             VkSurfaceKHR surface = gfx->surface;
             VkQueueFamilyProperties* props = &info->families[j];
             vkGetPhysicalDeviceSurfaceSupportKHR(info->handle, j, surface, &canPresent);
-            if ((props->queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0 && canPresent)
+            uint32_t queueMask = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_TRANSFER_BIT;
+            if ((props->queueFlags & queueMask) == queueMask && canPresent)
             {
                 gfx->memProps = info->memory;
                 /*caps->numSurfFormats = VK_MAX_SURFACE_FORMATS;
@@ -183,18 +184,36 @@ VkResult gfxCreateDevice(gfxContext_t* gfx, GLFWwindow* window)
 	gfx->device = vklCreateDevice(&gfxDeviceSetupCallback, gfx);
 	if (gfx->surface && gfx->device)
 	{
+        /* todo: create swapchain, command queues, pools and buffers */
 		gfx->stagingBuffer.upload = true;
 		gfx->stagingBuffer.size = GFX_STAGING_BUFFER_SIZE;
-		return gfxCreateBuffer(gfx, &gfx->stagingBuffer);
+		if (gfxCreateBuffer(gfx, &gfx->stagingBuffer) == VK_SUCCESS)
+        {
+            return vkMapMemory(gfx->device,
+                gfx->stagingBuffer.memory,
+                0,
+                gfx->stagingBuffer.size,
+                0,
+                &gfx->stagingBuffer.hostPtr);
+        }
 	}
 	return VK_NOT_READY;
 }
 
 void gfxDestroyDevice(gfxContext_t* gfx)
 {
+    vkUnmapMemory(gfx->device, gfx->stagingBuffer.memory);
 	gfxDestroyBuffer(gfx, &gfx->stagingBuffer);
 	vkDestroyDevice(gfx->device, NULL);
 	vklDestroySurface(gfx->surface);
 	gfx->surface = NULL;
 	gfx->device = NULL;
+}
+
+void gfxBeginFrame(gfxContext_t* gfx)
+{
+}
+
+void gfxEndFrame(gfxContext_t* gfx)
+{
 }
