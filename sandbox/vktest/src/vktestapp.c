@@ -80,15 +80,7 @@ int main(int argc, const char * argv[])
             while (!glfwWindowShouldClose(window))
             {
                 gfxBeginFrame(&gfx);
-				if (tex.hasPendingData)
-				{
-                    memcpy(gfx.stagingBuffer.hostPtr, tex.imageData, tex.imageDataSize);
-                    /*stagedata (copy)*/
-                    
-					/*upload data via staging buffer*/
-					/* each upload request copies to a portion of staging buffer and adds a copy command to a list */
-					/* when staging buffer is full: if more uploads pending, blit a copy of previous frame, otherwise draw */
-				}
+                gfxUpdateResources(&gfx, &tex, 1, NULL, 0);
                 /*blit to gfx->backBuffer (transition resources, do blit)*/
                 /*endframe (transition backbuffer to present)*/
 

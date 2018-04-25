@@ -10,6 +10,9 @@
 typedef enum gfxDataFormat_t
 {
     GFX_FORMAT_BRGA8 = VK_FORMAT_B8G8R8A8_UNORM,
+    GFX_FORMAT_BGRA8_SRGB = VK_FORMAT_B8G8R8A8_SRGB,
+    GFX_FORMAT_RGBA8 = VK_FORMAT_R8G8B8A8_UNORM,
+    GFX_FORMAT_RGBA8_SRGB = VK_FORMAT_R8G8B8A8_SRGB,
     GFX_FORMAT_D24S8 = VK_FORMAT_D24_UNORM_S8_UINT,
 	GFX_FORMAT_GRAYSCALE  = VK_FORMAT_R8_UNORM,
     GFX_DEFAULT_COLOR_FORMAT = GFX_FORMAT_BRGA8,
@@ -51,11 +54,14 @@ typedef struct gfxContext_t
 {
 	VkDevice device;
 	VkSurfaceKHR surface;
+    VkSurfaceFormatKHR surfFormat;
 	VkPhysicalDeviceMemoryProperties memProps;
 	uint32_t queueFamily;
 	VkQueue cmdQueue;
 	VkCommandPool cmdPool;
 	gfxBuffer_t stagingBuffer;
+    uint8_t* linearAllocPos;
+    void* linearAlloc;
 } gfxContext_t;
 
 struct GLFWwindow;
@@ -71,6 +77,12 @@ void gfxDestroyTexture(gfxContext_t* gfx, gfxTexture_t* texture);
 VkResult gfxCreateDevice(gfxContext_t* gfx, struct GLFWwindow* window);
 
 void gfxDestroyDevice(gfxContext_t* gfx);
+
+void gfxUpdateResources(gfxContext_t* gfx,
+    gfxTexture_t* textures,
+    size_t numTextures,
+    gfxBuffer_t* buffers,
+    size_t numBuffers);
 
 void gfxBeginFrame(gfxContext_t* gfx);
 

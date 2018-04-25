@@ -57,3 +57,5 @@ VkResult vklMemAlloc(VkDevice device,
     VkDeviceMemory* memory);
 
 void vklShutdown();
+
+#define VKCHECK(call) assert( call ==VK_SUCCESS)

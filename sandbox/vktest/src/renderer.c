@@ -7,6 +7,14 @@
 #include <GLFW/glfw3native.h>
 
 #define GFX_STAGING_BUFFER_SIZE (16u << 20)
+#define GFX_LINEAR_ALLOC_CAPACITY (4u << 20)
+
+static void* gfxMalloc(gfxContext_t* gfx, size_t size)
+{
+    void* result = gfx->linearAllocPos;
+    gfx->linearAllocPos += size;
+    return result;
+}
 
 static VkResult gfxDeviceSetupCallback(void* context,
     vklDeviceSetup_t* conf,
@@ -34,11 +42,22 @@ static VkResult gfxDeviceSetupCallback(void* context,
             {
 				gfx->queueFamily = j;
                 gfx->memProps = info->memory;
+                uint32_t numFormats = 8;
+                VKCHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &numFormats, NULL));
+                VkSurfaceFormatKHR* formats = (VkSurfaceFormatKHR*)gfxMalloc(gfx, numFormats * sizeof(VkSurfaceFormatKHR));
+                VKCHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &numFormats, formats));
+                for (uint32_t k = 0; k < numFormats; k++)
+                {
+                    if (formats[k].format == GFX_FORMAT_BGRA8_SRGB)
+                    {
+                        gfx->surfFormat = formats[k];
+                        break;
+                    }
+                }
                 /*caps->numSurfFormats = VK_MAX_SURFACE_FORMATS;
                  caps->numPresentModes = VK_PRESENT_MODE_RANGE_SIZE_KHR;
                  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(info->handle, surface, &caps->surfaceCaps);
-                 vkGetPhysicalDeviceSurfacePresentModesKHR(info->handle, surface, &caps->numPresentModes, caps->presentModes);
-                 vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &caps->numSurfFormats, caps->surfFormats);*/
+                 vkGetPhysicalDeviceSurfacePresentModesKHR(info->handle, surface, &caps->numPresentModes, caps->presentModes);*/
                 conf->queues[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
                 conf->queues[0].queueFamilyIndex = j;
                 conf->queues[0].queueCount = 1;
@@ -177,6 +196,8 @@ void gfxDestroyTexture(gfxContext_t* gfx, gfxTexture_t* texture)
 
 VkResult gfxCreateDevice(gfxContext_t* gfx, GLFWwindow* window)
 {
+    gfx->linearAlloc = malloc(GFX_LINEAR_ALLOC_CAPACITY);
+    gfx->linearAllocPos = (uint8_t*)gfx->linearAlloc;
 	gfx->surface = vklCreateSurface(glfwGetNativeView(window));
 	gfx->device = vklCreateDevice(&gfxDeviceSetupCallback, gfx);
 	assert(gfx->surface && gfx->device);
@@ -205,12 +226,51 @@ void gfxDestroyDevice(gfxContext_t* gfx)
 	vkDestroyCommandPool(gfx->device, gfx->cmdPool, NULL);
 	vkDestroyDevice(gfx->device, NULL);
 	vklDestroySurface(gfx->surface);
+    free(gfx->linearAlloc);
 	gfx->surface = NULL;
 	gfx->device = NULL;
 }
 
+void gfxUpdateResources(gfxContext_t* gfx,
+    gfxTexture_t* textures,
+    size_t numTextures,
+    gfxBuffer_t* buffers,
+    size_t numBuffers)
+{
+    uint32_t numBarriers = 0;
+    size_t availBytes = gfx->stagingBuffer.size;
+    uint8_t* buff = (uint8_t*)gfx->stagingBuffer.hostPtr;
+    size_t tmpBytes = numTextures * sizeof(VkImageMemoryBarrier);
+    VkImageMemoryBarrier* barriers = (VkImageMemoryBarrier*)gfxMalloc(gfx, tmpBytes);
+    for (size_t i = 0; i < numTextures; i++)
+    {
+        if (textures[i].hasPendingData && textures[i].imageDataSize <= availBytes)
+        {
+            VkImageMemoryBarrier* barrier = &barriers[numBuffers++];
+            memset(barrier, 0, sizeof(VkImageMemoryBarrier));
+            memcpy(buff, textures[i].imageData, textures[i].imageDataSize);
+            barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            barrier->oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            barrier->newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            barrier->image = textures[i].image;
+            /*command to do image layout change*/
+            /*buffer to image transfer command*/
+            availBytes -= textures[i].imageDataSize;
+            buff += textures[i].imageDataSize;
+            textures[i].hasPendingData = false;
+        }
+        else if (textures[i].imageDataSize > availBytes)
+        {
+            break;
+        }
+    }
+    /* todo: add update for buffers */
+    assert(numBuffers == 0);
+}
+
 void gfxBeginFrame(gfxContext_t* gfx)
 {
+    gfx->linearAllocPos = (uint8_t*)gfx->linearAlloc;
 }
 
 void gfxEndFrame(gfxContext_t* gfx)
