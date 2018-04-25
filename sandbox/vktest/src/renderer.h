@@ -7,6 +7,10 @@
 
 #include <core/math.h>
 
+#define GFX_LINEAR_ALLOC_DECLARE() \
+	uint8_t *linearAllocMem, *linearAllocPos, *linearAllocMark; \
+	size_t linearAllocMax, linearAllocRem;
+
 typedef enum gfxDataFormat_t
 {
     GFX_FORMAT_BRGA8 = VK_FORMAT_B8G8R8A8_UNORM,
@@ -52,16 +56,25 @@ typedef struct gfxTexture_t
 
 typedef struct gfxContext_t
 {
+	GFX_LINEAR_ALLOC_DECLARE()
 	VkDevice device;
 	VkSurfaceKHR surface;
+	VkExtent2D surfaceSize;
+	VkSurfaceTransformFlagBitsKHR transform;
     VkSurfaceFormatKHR surfFormat;
+	VkPresentModeKHR presentMode;
 	VkPhysicalDeviceMemoryProperties memProps;
 	uint32_t queueFamily;
+	uint32_t numBuffers;
+	uint32_t bufferIdx;
+	gfxTexture_t* buffers;
+	gfxTexture_t* backBuffer;
 	VkQueue cmdQueue;
 	VkCommandPool cmdPool;
 	gfxBuffer_t stagingBuffer;
-    uint8_t* linearAllocPos;
-    void* linearAlloc;
+	VkSwapchainKHR swapChain;
+	VkSemaphore canDraw;
+	VkSemaphore canSwap;
 } gfxContext_t;
 
 struct GLFWwindow;
