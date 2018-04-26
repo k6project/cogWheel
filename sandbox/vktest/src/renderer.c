@@ -319,10 +319,8 @@ VkResult gfxCreateDevice(gfxContext_t* gfx, GLFWwindow* window)
 	assert(gfxCreateBuffer(gfx, &gfx->stagingBuffer) == VK_SUCCESS);
 	return vkMapMemory(gfx->device,
 		gfx->stagingBuffer.memory,
-		0,
-		gfx->stagingBuffer.size,
-		0,
-		&gfx->stagingBuffer.hostPtr);
+		0, gfx->stagingBuffer.size,
+		0, &gfx->stagingBuffer.hostPtr);
 }
 
 void gfxDestroyDevice(gfxContext_t* gfx)
@@ -377,8 +375,6 @@ void gfxUpdateResources(gfxContext_t* gfx,
             barrier->subresourceRange.levelCount = 1;
             VkBufferImageCopy* region = &regions[numRegions++];
             region->bufferOffset = buff - ((uint8_t*)gfx->stagingBuffer.hostPtr);
-            region->bufferRowLength = textures[i].imageDataSize;
-            //region->bufferImageHeight = 1;
             region->imageExtent.width = textures[i].width;
             region->imageExtent.height = textures[i].height;
             region->imageExtent.depth = 1;
@@ -407,8 +403,7 @@ void gfxUpdateResources(gfxContext_t* gfx,
             gfx->stagingBuffer.handle,
             barriers[i].image,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            1,
-            &regions[i]);
+            1, &regions[i]);
     }
 }
 
@@ -434,8 +429,7 @@ void gfxClearRenderTarget(gfxContext_t* gfx,
         tex->image,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         value,
-        1,
-        &barrier.subresourceRange);
+        1, &barrier.subresourceRange);
 }
 
 void gfxBlitTexture(gfxContext_t* gfx,
@@ -466,6 +460,22 @@ void gfxBlitTexture(gfxContext_t* gfx,
     barriers[1].subresourceRange.levelCount = 1;
     VkPipelineStageFlags sFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
     vkCmdPipelineBarrier(gfx->cmdBuffer, sFlags, sFlags, 0, 0, NULL, 0, NULL, 2, barriers);
+	VkImageBlit blit;
+	memset(&blit, 0, sizeof(blit));
+	blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	blit.srcSubresource.layerCount = 1;
+	blit.srcOffsets[1].x = src->width;
+	blit.srcOffsets[1].y = src->height;
+	blit.srcOffsets[1].z = 1;
+	blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	blit.dstSubresource.layerCount = 1;
+	blit.dstOffsets[1].x = dest->width;
+	blit.dstOffsets[1].y = dest->height;
+	blit.dstOffsets[1].z = 1;
+	vkCmdBlitImage(gfx->cmdBuffer, 
+		src->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 
+		dest->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
+		1, &blit, VK_FILTER_NEAREST);
 }
 
 void gfxBeginFrame(gfxContext_t* gfx)

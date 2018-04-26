@@ -43,8 +43,8 @@ void checkerboard(struct gfxTexture_t* texture)
     for (size_t i = 0; i < dataSize; i++)
     {
         size_t tmp = i % ppr;
-        size_t row = i / ppr;
         size_t col = tmp / step;
+		size_t row = (i / ppr) / step;
         size_t token = (col & 1) + (row & 1);
         mem[i] = (token & 1) * 0xff;
     }
