@@ -83,16 +83,7 @@ int main(int argc, const char * argv[])
                 gfxBeginFrame(&gfx);
                 gfxUpdateResources(&gfx, &tex, 1, NULL, 0);
                 gfxClearRenderTarget(&gfx, NULL, (vec4f_t){0.f, 0.2f, 1.f, 1.f});
-                gfxBlitTexture(&gfx, NULL, &tex);
-                /*blit to gfx->backBuffer (transition resources, do blit)*/
-                /*endframe (transition backbuffer to present)*/
-
-				/*
-					vkCmdPipelineBarrier on framebuffer to become transfer_dst
-					vkCmdClearColorImage on framebuffer (initially) or blit(final)
-					vkCmdPipelineBarrier on framebuffer to become present_khr
-				*/
-
+				gfxBlitTexture(&gfx, NULL, &tex);
                 gfxEndFrame(&gfx);
                 glfwPollEvents();
             }

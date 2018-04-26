@@ -247,6 +247,7 @@ VkResult gfxCreateTexture(gfxContext_t* gfx, gfxTexture_t* texture)
 
 void gfxDestroyTexture(gfxContext_t* gfx, gfxTexture_t* texture)
 {
+	VKCHECK(vkDeviceWaitIdle(gfx->device));
     vkDestroyImageView(gfx->device, texture->handle, NULL);
     if (texture->ownGpuMem)
     {
@@ -394,7 +395,8 @@ void gfxUpdateResources(gfxContext_t* gfx,
     if (numBarriers > 0)
     {
         VkPipelineStageFlags sFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        vkCmdPipelineBarrier(gfx->cmdBuffer, sFlags, sFlags, 0, 0, NULL, 0, NULL, numBarriers, barriers);
+		VkPipelineStageFlags dFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        vkCmdPipelineBarrier(gfx->cmdBuffer, sFlags, dFlags, 0, 0, NULL, 0, NULL, numBarriers, barriers);
     }
     for (uint32_t i = 0; i < numRegions; i++)
     {
@@ -414,6 +416,7 @@ void gfxClearRenderTarget(gfxContext_t* gfx,
     gfxTexture_t* tex = (texture) ? texture : gfx->backBuffer;
     VkImageMemoryBarrier barrier;
     VKINIT(barrier, VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);
+	barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     barrier.srcQueueFamilyIndex = gfx->queueFamily;
@@ -423,7 +426,8 @@ void gfxClearRenderTarget(gfxContext_t* gfx,
     barrier.subresourceRange.layerCount = 1;
     barrier.subresourceRange.levelCount = 1;
     VkPipelineStageFlags sFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    vkCmdPipelineBarrier(gfx->cmdBuffer, sFlags, sFlags, 0, 0, NULL, 0, NULL, 1, &barrier);
+	VkPipelineStageFlags dFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    vkCmdPipelineBarrier(gfx->cmdBuffer, sFlags, dFlags, 0, 0, NULL, 0, NULL, 1, &barrier);
     VkClearColorValue* value = (VkClearColorValue*)color;
     vkCmdClearColorImage(gfx->cmdBuffer,
         tex->image,
@@ -441,6 +445,7 @@ void gfxBlitTexture(gfxContext_t* gfx,
     assert(src != dest);
     VkImageMemoryBarrier barriers[2];
     VKINIT(barriers[0], VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);
+	barriers[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     barriers[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     barriers[0].newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     barriers[0].srcQueueFamilyIndex = gfx->queueFamily;
@@ -450,6 +455,10 @@ void gfxBlitTexture(gfxContext_t* gfx,
     barriers[0].subresourceRange.layerCount = 1;
     barriers[0].subresourceRange.levelCount = 1;
     VKINIT(barriers[1], VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);
+	barriers[1].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT 
+		| VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT 
+		| VK_ACCESS_SHADER_WRITE_BIT;
+	barriers[1].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
     barriers[1].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     barriers[1].newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
     barriers[1].srcQueueFamilyIndex = gfx->queueFamily;
@@ -458,8 +467,11 @@ void gfxBlitTexture(gfxContext_t* gfx,
     barriers[1].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     barriers[1].subresourceRange.layerCount = 1;
     barriers[1].subresourceRange.levelCount = 1;
-    VkPipelineStageFlags sFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    vkCmdPipelineBarrier(gfx->cmdBuffer, sFlags, sFlags, 0, 0, NULL, 0, NULL, 2, barriers);
+    VkPipelineStageFlags sFlags = VK_PIPELINE_STAGE_TRANSFER_BIT 
+		| VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT 
+		| VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+	VkPipelineStageFlags dFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    vkCmdPipelineBarrier(gfx->cmdBuffer, sFlags, dFlags, 0, 0, NULL, 0, NULL, 2, barriers);
 	VkImageBlit blit;
 	memset(&blit, 0, sizeof(blit));
 	blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -494,7 +506,7 @@ void gfxEndFrame(gfxContext_t* gfx)
 {
     VkImageMemoryBarrier barrier;
     VKINIT(barrier, VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);
-    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     barrier.srcQueueFamilyIndex = gfx->queueFamily;
     barrier.dstQueueFamilyIndex = gfx->queueFamily;
@@ -502,11 +514,11 @@ void gfxEndFrame(gfxContext_t* gfx)
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.layerCount = 1;
     barrier.subresourceRange.levelCount = 1;
-    VkPipelineStageFlags sFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    vkCmdPipelineBarrier(gfx->cmdBuffer, sFlags, sFlags, 0, 0, NULL, 0, NULL, 1, &barrier);
+    VkPipelineStageFlags sFlags = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+	VkPipelineStageFlags dFlags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    vkCmdPipelineBarrier(gfx->cmdBuffer, sFlags, dFlags, 0, 0, NULL, 0, NULL, 1, &barrier);
     VKCHECK(vkEndCommandBuffer(gfx->cmdBuffer));
     VkSubmitInfo submitInfo;
-    sFlags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
     VKINIT(submitInfo, VK_STRUCTURE_TYPE_SUBMIT_INFO);
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &gfx->cmdBuffer;
@@ -514,7 +526,7 @@ void gfxEndFrame(gfxContext_t* gfx)
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = &gfx->canDraw;
     submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitDstStageMask = &sFlags;
+	submitInfo.pWaitDstStageMask = &sFlags;
     VKCHECK(vkQueueSubmit(gfx->cmdQueue, 1, &submitInfo, VK_NULL_HANDLE));
 	VkPresentInfoKHR presentInfo;
 	VKINIT(presentInfo, VK_STRUCTURE_TYPE_PRESENT_INFO_KHR);
