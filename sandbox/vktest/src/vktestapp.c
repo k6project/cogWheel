@@ -75,12 +75,15 @@ int main(int argc, const char * argv[])
 			memset(&tex, 0, sizeof(tex));
 			tex.width = width;
 			tex.height = height;
+            tex.renderTarget = true;
             checkerboard(&tex);
 			assert(gfxCreateTexture(&gfx, &tex) == VK_SUCCESS);
             while (!glfwWindowShouldClose(window))
             {
                 gfxBeginFrame(&gfx);
                 gfxUpdateResources(&gfx, &tex, 1, NULL, 0);
+                gfxClearRenderTarget(&gfx, NULL, (vec4f_t){0.f, 0.2f, 1.f, 1.f});
+                gfxBlitTexture(&gfx, NULL, &tex);
                 /*blit to gfx->backBuffer (transition resources, do blit)*/
                 /*endframe (transition backbuffer to present)*/
 

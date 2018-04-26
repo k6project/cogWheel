@@ -57,4 +57,4 @@ VkResult vklMemAlloc(VkDevice device,
 void vklShutdown();
 
 #define VKCHECK(call) do { VkResult VKRESULT = call ; assert(VKRESULT==VK_SUCCESS);} while (0)
-#define VKINIT(obj,tname) do { memset(&obj, 0, sizeof(obj));obj.sType = tname; } while (0)
+#define VKINIT(obj,tname) do { memset(&obj, 0, sizeof(obj));(obj).sType = tname; } while (0)

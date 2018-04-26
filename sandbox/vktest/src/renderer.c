@@ -195,8 +195,10 @@ VkResult gfxCreateTexture(gfxContext_t* gfx, gfxTexture_t* texture)
         imageInfo.mipLevels = texture->numMips;
         imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
         if (texture->renderTarget)
         {
+            imageInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
             switch (texture->format)
             {
                 case GFX_FORMAT_D24S8:
@@ -260,9 +262,13 @@ void gfxDestroyTexture(gfxContext_t* gfx, gfxTexture_t* texture)
 VkResult gfxCreateDevice(gfxContext_t* gfx, GLFWwindow* window)
 {
 	GFX_LINEAR_ALLOC_INIT(gfx, GFX_LINEAR_ALLOC_CAPACITY);
-	size_t numBytes = GFX_DEFAULT_NUM_BUFFERS * sizeof(gfxTexture_t);
-	gfx->buffers = (gfxTexture_t*)gfxMallocStatic(gfx, numBytes);
-	memset(gfx->buffers, 0, numBytes);
+	size_t imbBytes = GFX_DEFAULT_NUM_BUFFERS * sizeof(gfxTexture_t);
+    size_t cmbBytes = GFX_DEFAULT_NUM_BUFFERS * sizeof(VkCommandBuffer);
+    size_t staticBytes = imbBytes + cmbBytes;
+    uint8_t* staticMem = (uint8_t*)gfxMallocStatic(gfx, staticBytes);
+    memset(staticMem, 0, staticBytes);
+	gfx->imgBuffers = (gfxTexture_t*)staticMem;
+    gfx->cmdBuffers = (VkCommandBuffer*)(staticMem + imbBytes);
 	gfx->surface = vklCreateSurface(glfwGetNativeView(window));
 	gfx->device = vklCreateDevice(&gfxDeviceSetupCallback, gfx);
 	assert(gfx->surface && gfx->device);
@@ -285,23 +291,29 @@ VkResult gfxCreateDevice(gfxContext_t* gfx, GLFWwindow* window)
 	VKCHECK(vkGetSwapchainImagesKHR(gfx->device, gfx->swapChain, &gfx->numBuffers, images));
 	for (uint32_t i = 0; i < gfx->numBuffers; i++)
 	{
-		gfx->buffers[i].width = gfx->surfaceSize.width;
-		gfx->buffers[i].height = gfx->surfaceSize.height;
-		gfx->buffers[i].format = gfx->surfFormat.format;
-		gfx->buffers[i].renderTarget = true;
-		gfx->buffers[i].image = images[i];
-		VKCHECK(gfxCreateTexture(gfx, &gfx->buffers[i]));
+		gfx->imgBuffers[i].width = gfx->surfaceSize.width;
+		gfx->imgBuffers[i].height = gfx->surfaceSize.height;
+		gfx->imgBuffers[i].format = gfx->surfFormat.format;
+		gfx->imgBuffers[i].renderTarget = true;
+		gfx->imgBuffers[i].image = images[i];
+		VKCHECK(gfxCreateTexture(gfx, &gfx->imgBuffers[i]));
 	}
 	vkGetDeviceQueue(gfx->device, gfx->queueFamily, 0, &gfx->cmdQueue);
 	VkCommandPoolCreateInfo poolCreateInfo;
 	VKINIT(poolCreateInfo, VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO);
 	poolCreateInfo.queueFamilyIndex = gfx->queueFamily;
+    poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	VKCHECK(vkCreateCommandPool(gfx->device, &poolCreateInfo, NULL, &gfx->cmdPool));
 	VkSemaphoreCreateInfo semCreateInfo;
 	VKINIT(semCreateInfo, VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO);
 	VKCHECK(vkCreateSemaphore(gfx->device, &semCreateInfo, NULL, &gfx->canDraw));
 	VKCHECK(vkCreateSemaphore(gfx->device, &semCreateInfo, NULL, &gfx->canSwap));
-	/* todo: create command buffers (one per swapchain image) */
+    VkCommandBufferAllocateInfo cbAllocInfo;
+    VKINIT(cbAllocInfo, VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO);
+    cbAllocInfo.commandPool = gfx->cmdPool;
+    cbAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    cbAllocInfo.commandBufferCount = gfx->numBuffers;
+    VKCHECK(vkAllocateCommandBuffers(gfx->device, &cbAllocInfo, gfx->cmdBuffers));
 	gfx->stagingBuffer.upload = true;
 	gfx->stagingBuffer.size = GFX_STAGING_BUFFER_SIZE;
 	assert(gfxCreateBuffer(gfx, &gfx->stagingBuffer) == VK_SUCCESS);
@@ -315,11 +327,12 @@ VkResult gfxCreateDevice(gfxContext_t* gfx, GLFWwindow* window)
 
 void gfxDestroyDevice(gfxContext_t* gfx)
 {
+    VKCHECK(vkDeviceWaitIdle(gfx->device));
     vkUnmapMemory(gfx->device, gfx->stagingBuffer.memory);
 	gfxDestroyBuffer(gfx, &gfx->stagingBuffer);
 	for (uint32_t i = 0; i < gfx->numBuffers; i++)
 	{
-		gfxDestroyTexture(gfx, &gfx->buffers[i]);
+		gfxDestroyTexture(gfx, &gfx->imgBuffers[i]);
 	}
 	vkDestroySemaphore(gfx->device, gfx->canSwap, NULL);
 	vkDestroySemaphore(gfx->device, gfx->canDraw, NULL);
@@ -338,24 +351,39 @@ void gfxUpdateResources(gfxContext_t* gfx,
     gfxBuffer_t* buffers,
     size_t numBuffers)
 {
-    uint32_t numBarriers = 0;
+    uint32_t numBarriers = 0, numRegions = 0;
     size_t availBytes = gfx->stagingBuffer.size;
     uint8_t* buff = (uint8_t*)gfx->stagingBuffer.hostPtr;
     size_t tmpBytes = numTextures * sizeof(VkImageMemoryBarrier);
     VkImageMemoryBarrier* barriers = (VkImageMemoryBarrier*)gfxMalloc(gfx, tmpBytes);
+    tmpBytes = numTextures * sizeof(VkBufferImageCopy);
+    VkBufferImageCopy* regions = (VkBufferImageCopy*)gfxMalloc(gfx, tmpBytes);
+    memset(regions, 0, tmpBytes);
     for (size_t i = 0; i < numTextures; i++)
     {
         if (textures[i].hasPendingData && textures[i].imageDataSize <= availBytes)
         {
             VkImageMemoryBarrier* barrier = &barriers[numBarriers++];
-            memset(barrier, 0, sizeof(VkImageMemoryBarrier));
+            VKINIT(*barrier, VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);
             memcpy(buff, textures[i].imageData, textures[i].imageDataSize);
-            barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
             barrier->oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
             barrier->newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
             barrier->image = textures[i].image;
-            /*command to do image layout change*/
-            /*buffer to image transfer command*/
+            barrier->srcQueueFamilyIndex = gfx->queueFamily;
+            barrier->dstQueueFamilyIndex = gfx->queueFamily;
+            barrier->image = textures[i].image;
+            barrier->subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;/*todo: depth/stencil ???*/
+            barrier->subresourceRange.layerCount = 1;
+            barrier->subresourceRange.levelCount = 1;
+            VkBufferImageCopy* region = &regions[numRegions++];
+            region->bufferOffset = buff - ((uint8_t*)gfx->stagingBuffer.hostPtr);
+            region->bufferRowLength = textures[i].imageDataSize;
+            //region->bufferImageHeight = 1;
+            region->imageExtent.width = textures[i].width;
+            region->imageExtent.height = textures[i].height;
+            region->imageExtent.depth = 1;
+            region->imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            region->imageSubresource.layerCount = 1;
             availBytes -= textures[i].imageDataSize;
             buff += textures[i].imageDataSize;
             textures[i].hasPendingData = false;
@@ -367,20 +395,123 @@ void gfxUpdateResources(gfxContext_t* gfx,
     }
     /* todo: add update for buffers */
     assert(numBuffers == 0);
+    if (numBarriers > 0)
+    {
+        VkPipelineStageFlags sFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        vkCmdPipelineBarrier(gfx->cmdBuffer, sFlags, sFlags, 0, 0, NULL, 0, NULL, numBarriers, barriers);
+    }
+    for (uint32_t i = 0; i < numRegions; i++)
+    {
+        /* assumed:  texture barrier index matches region index */
+        vkCmdCopyBufferToImage(gfx->cmdBuffer,
+            gfx->stagingBuffer.handle,
+            barriers[i].image,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1,
+            &regions[i]);
+    }
+}
+
+void gfxClearRenderTarget(gfxContext_t* gfx,
+    gfxTexture_t* texture,
+    vec4f_t color)
+{
+    gfxTexture_t* tex = (texture) ? texture : gfx->backBuffer;
+    VkImageMemoryBarrier barrier;
+    VKINIT(barrier, VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);
+    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.srcQueueFamilyIndex = gfx->queueFamily;
+    barrier.dstQueueFamilyIndex = gfx->queueFamily;
+    barrier.image = tex->image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.levelCount = 1;
+    VkPipelineStageFlags sFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    vkCmdPipelineBarrier(gfx->cmdBuffer, sFlags, sFlags, 0, 0, NULL, 0, NULL, 1, &barrier);
+    VkClearColorValue* value = (VkClearColorValue*)color;
+    vkCmdClearColorImage(gfx->cmdBuffer,
+        tex->image,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        value,
+        1,
+        &barrier.subresourceRange);
+}
+
+void gfxBlitTexture(gfxContext_t* gfx,
+    gfxTexture_t* dest,
+    gfxTexture_t* src)
+{
+    src = (src) ? src : gfx->backBuffer;
+    dest = (dest) ? dest : gfx->backBuffer;
+    assert(src != dest);
+    VkImageMemoryBarrier barriers[2];
+    VKINIT(barriers[0], VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);
+    barriers[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    barriers[0].newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barriers[0].srcQueueFamilyIndex = gfx->queueFamily;
+    barriers[0].dstQueueFamilyIndex = gfx->queueFamily;
+    barriers[0].image = dest->image;
+    barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barriers[0].subresourceRange.layerCount = 1;
+    barriers[0].subresourceRange.levelCount = 1;
+    VKINIT(barriers[1], VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);
+    barriers[1].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    barriers[1].newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barriers[1].srcQueueFamilyIndex = gfx->queueFamily;
+    barriers[1].dstQueueFamilyIndex = gfx->queueFamily;
+    barriers[1].image = src->image;
+    barriers[1].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barriers[1].subresourceRange.layerCount = 1;
+    barriers[1].subresourceRange.levelCount = 1;
+    VkPipelineStageFlags sFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    vkCmdPipelineBarrier(gfx->cmdBuffer, sFlags, sFlags, 0, 0, NULL, 0, NULL, 2, barriers);
 }
 
 void gfxBeginFrame(gfxContext_t* gfx)
 {
 	GFX_LINEAR_ALLOC_RESET(gfx);
+    VKCHECK(vkQueueWaitIdle(gfx->cmdQueue));
 	VKCHECK(vkAcquireNextImageKHR(gfx->device, gfx->swapChain, UINT64_MAX, gfx->canDraw, VK_NULL_HANDLE, &gfx->bufferIdx));
+    gfx->backBuffer = &gfx->imgBuffers[gfx->bufferIdx];
+    gfx->cmdBuffer = gfx->cmdBuffers[gfx->bufferIdx];
+    VkCommandBufferBeginInfo beginInfo;
+    VKINIT(beginInfo, VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO);
+    VKCHECK(vkBeginCommandBuffer(gfx->cmdBuffer, &beginInfo));
 }
 
 void gfxEndFrame(gfxContext_t* gfx)
 {
+    VkImageMemoryBarrier barrier;
+    VKINIT(barrier, VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    barrier.srcQueueFamilyIndex = gfx->queueFamily;
+    barrier.dstQueueFamilyIndex = gfx->queueFamily;
+    barrier.image = gfx->backBuffer->image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.levelCount = 1;
+    VkPipelineStageFlags sFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    vkCmdPipelineBarrier(gfx->cmdBuffer, sFlags, sFlags, 0, 0, NULL, 0, NULL, 1, &barrier);
+    VKCHECK(vkEndCommandBuffer(gfx->cmdBuffer));
+    VkSubmitInfo submitInfo;
+    sFlags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    VKINIT(submitInfo, VK_STRUCTURE_TYPE_SUBMIT_INFO);
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &gfx->cmdBuffer;
+    submitInfo.pSignalSemaphores = &gfx->canSwap;
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = &gfx->canDraw;
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitDstStageMask = &sFlags;
+    VKCHECK(vkQueueSubmit(gfx->cmdQueue, 1, &submitInfo, VK_NULL_HANDLE));
 	VkPresentInfoKHR presentInfo;
 	VKINIT(presentInfo, VK_STRUCTURE_TYPE_PRESENT_INFO_KHR);
 	presentInfo.pSwapchains = &gfx->swapChain;
 	presentInfo.pImageIndices = &gfx->bufferIdx;
 	presentInfo.swapchainCount = 1;
+    presentInfo.pWaitSemaphores = &gfx->canSwap;
+    presentInfo.waitSemaphoreCount = 1;
 	VKCHECK(vkQueuePresentKHR(gfx->cmdQueue, &presentInfo));
 }

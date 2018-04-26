@@ -67,7 +67,7 @@ typedef struct gfxContext_t
 	uint32_t queueFamily;
 	uint32_t numBuffers;
 	uint32_t bufferIdx;
-	gfxTexture_t* buffers;
+	gfxTexture_t* imgBuffers;
 	gfxTexture_t* backBuffer;
 	VkQueue cmdQueue;
 	VkCommandPool cmdPool;
@@ -75,6 +75,8 @@ typedef struct gfxContext_t
 	VkSwapchainKHR swapChain;
 	VkSemaphore canDraw;
 	VkSemaphore canSwap;
+    VkCommandBuffer* cmdBuffers;
+    VkCommandBuffer cmdBuffer;
 } gfxContext_t;
 
 struct GLFWwindow;
@@ -96,6 +98,14 @@ void gfxUpdateResources(gfxContext_t* gfx,
     size_t numTextures,
     gfxBuffer_t* buffers,
     size_t numBuffers);
+
+void gfxClearRenderTarget(gfxContext_t* gfx,
+    gfxTexture_t* texture,
+    vec4f_t color);
+
+void gfxBlitTexture(gfxContext_t* gfx,
+    gfxTexture_t* dest,
+    gfxTexture_t* src);
 
 void gfxBeginFrame(gfxContext_t* gfx);
 
