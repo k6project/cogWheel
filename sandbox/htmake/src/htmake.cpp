@@ -1,18 +1,37 @@
-#include <algorithm>
-#include <iostream>
 #include <string>
-#include <vector>
+#include <iostream>
 
-const std::string&& make_html_safe(const std::string& str)
+#ifdef WIN32
+#ifdef _MBCS
+#define UTF8(s) s
+#else
+#error "Only multibyte strings are supported on Windows"
+#endif
+#include <filesystem>
+namespace fs = std::experimental::filesystem;
+#else
+#define UTF8(s) u8 ## s
+#endif
+
+using namespace std;
+
+static const string& makeHtmlSafe(const string& str)
 {
-    using pattern_t = std::pair<std::string, std::string>;
-    static const std::vector<pattern_t> HTML_ESCAPE_CHARS
+	thread_local static string result;
+    using pattern_t = pair<string, string>;
+    static const vector<pattern_t> HTML_ESCAPE_CHARS
     {
-        {u8"&", u8"&amp;"}, {u8"ü", u8"&uuml;"}, {u8"Ü", u8"&Uuml;"},
-        {u8">", u8"&gt;"}, {u8"ä", u8"&auml;"}, {u8"Ä", u8"&Auml;"},
-        {u8"<", u8"&lt;"}, {u8"ö", u8"&ouml;"}, {u8"Ö", u8"&Ouml;"}
+        { UTF8("&"), UTF8("&amp;") },  
+		{ UTF8("ü"), UTF8("&uuml;")}, 
+		{ UTF8("Ü"), UTF8("&Uuml;")}, 
+		{ UTF8("ä"), UTF8("&auml;")}, 
+		{ UTF8("Ä"), UTF8("&Auml;")},
+		{ UTF8("ö"), UTF8("&ouml;")}, 
+		{ UTF8("Ö"), UTF8("&Ouml;")},
+		{ UTF8(">"), UTF8("&gt;")  }, 
+        { UTF8("<"), UTF8("&lt;")  },   
     };
-    std::string result;
+	result.clear();
     result.reserve(str.size() << 1);
     for (auto it = str.begin(); it != str.end();)
     {
@@ -20,7 +39,7 @@ const std::string&& make_html_safe(const std::string& str)
         const char* start = &*it;
         for (const auto& entry : HTML_ESCAPE_CHARS)
         {
-            const std::string& pattern = entry.first;
+            const string& pattern = entry.first;
             if ( !pattern.compare(0, pattern.size(), start, pattern.size()) )
             {
                 result.append(entry.second);
@@ -37,14 +56,17 @@ const std::string&& make_html_safe(const std::string& str)
             it += escaped;
         }
     }
-    result.shrink_to_fit();
-    return std::move(result);
+    return result;
 }
 
 int main(int argc, const char * argv[])
 {
-    std::string str("(Lübeck & Schwerin) < Köln > Düsseldorf");
-    std::string result = make_html_safe(str);
-    std::cout << "<p>" << result << "</p>" << std::endl;
+	fs::path baseDir = fs::u8path(argv[0]).parent_path();
+	for (const fs::path& path : fs::directory_iterator(baseDir))
+	{
+		cout << "<p>" << path << "</p>" << endl;
+	}
+    string str(UTF8("(Lübeck & Schwerin) < Köln > Düsseldorf"));
+    cout << "<p>" << makeHtmlSafe(str) << "</p>" << endl;
     return 0;
 }
