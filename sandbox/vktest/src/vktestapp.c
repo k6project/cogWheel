@@ -11,46 +11,6 @@
 #include "renderer.h"
 #include "patterns.h"
 
-
-/* TEST APPLICATION CODE */
-
-/*
- 
- vulkan10.h - loader and helper functions for vulkan library
- vulkan10.c
- 
- renderer.h
- renderer.c - application-specific implementation (can be copied over)
- 
- spirvlib.h
- spirvlib.c - app-specific shaders serialized as arrays
- 
- frame flow: if upload job is staged, perform it, otherwise draw graphics
-             or use parallel queues to submit both
- 
- initial values for memory budgets: 64 mb staging (cpu coherent), 192 mb device local
-
- forward pass: color0 (offscreen) form undefined to transfer_src_optimal
-               color1 (backbuffer) from undefined to transfer_dst_optimal
- subpass 0:color0 is color_attachment_optimal, color1 is not used
- 
- after forward pass use image memory barrier to transfer to present_src
-
- */
-
-/*
- 
- gfxBeginFrame(&gfx);//wait for present queue to finish and acquire image
- .....
- gfxResolveMSAA(&gfx);
- .....
- <ui rendering>//
- .....
- gfxSubmitFrame(&gfx); //blit to framebuffer and submit
- 
- */
-
-
 int main(int argc, const char * argv[])
 {
     vklInitialize(*argv);
