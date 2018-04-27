@@ -53,3 +53,86 @@ void checkerboard(struct gfxTexture_t* texture)
     texture->sampledTexture = true;
 	texture->imageData = mem;
 }
+
+/*
+
+ORIGINAL GLSL:
+
+const int Seed = 0;
+const int GridSize = 5;
+const int MaxIndex = GridSize - 1;
+const float NormUInt16 = 0.00001526;
+
+int coordHash(ivec2 block)
+{
+	int result = Seed;
+	result += block.x;
+	result += (result << 10);
+	result ^= (result >> 6 );
+	result += block.y;
+	result += (result << 10);
+	result ^= (result >> 6 );
+	return result;
+}
+
+int nextRandom(int prev)
+{
+	return (((prev * 1103515245 + 12345) % 2147483647) & 0x7fffffff) % 65536;
+}
+
+float fpNearest(ivec2 block, vec2 offset)
+{
+	int seed = coordHash(block) ^ Seed;
+
+	int x_int = nextRandom(seed);
+	int y_int = nextRandom(x_int);
+	vec2 featurePoint = vec2(float(x_int), float(y_int)) * NormUInt16;
+	float result = length(featurePoint - offset);
+
+	x_int = nextRandom(y_int);
+	y_int = nextRandom(x_int);
+	featurePoint = vec2(float(x_int), float(y_int)) * NormUInt16;
+	result = min(result, length(featurePoint - offset));
+
+	return clamp(result, 0.0, 1.0);
+}
+
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{
+	vec2 uv = fragCoord.xy / iResolution.xy;
+
+	vec2 gridCoord = uv * float(GridSize);
+	ivec2 block = ivec2(floor(gridCoord));
+	vec2 blockOffset = fract(gridCoord);
+	float noiseValue = fpNearest(block, blockOffset);
+
+	ivec4 nblock = ivec4(
+		(block.x == 0) ? MaxIndex : block.x - 1,
+		(block.x == MaxIndex) ? 0 : block.x + 1,
+		(block.y == 0) ? MaxIndex : block.y - 1,
+		(block.y == MaxIndex) ? 0 : block.y + 1
+	);
+	vec4 offs = blockOffset.xxyy + vec4(1.0, -1.0, 1.0, -1.0);
+
+
+	noiseValue = min(noiseValue, fpNearest(ivec2(block.x, nblock.w), vec2(blockOffset.x, offs.w)));
+	noiseValue = min(noiseValue, fpNearest(ivec2(block.x, nblock.z), vec2(blockOffset.x, offs.z)));
+	noiseValue = min(noiseValue, fpNearest(ivec2(nblock.y, block.y), vec2(offs.y, blockOffset.y)));
+	noiseValue = min(noiseValue, fpNearest(ivec2(nblock.x, block.y), vec2(offs.x, blockOffset.y)));
+	noiseValue = min(noiseValue, fpNearest(nblock.yw, vec2(offs.y, offs.w)));
+	noiseValue = min(noiseValue, fpNearest(nblock.yz, vec2(offs.y, offs.z)));
+	noiseValue = min(noiseValue, fpNearest(nblock.xw, vec2(offs.x, offs.w)));
+	noiseValue = min(noiseValue, fpNearest(nblock.xz, vec2(offs.x, offs.z)));
+
+	noiseValue = clamp(noiseValue, 0.0, 1.0);
+	vec3 c1 = (1.0 - noiseValue) * vec3(1.0, 0.0, 0.0);
+	vec3 c2 = noiseValue * vec3(1.0, 1.0, 0.0);
+	fragColor = vec4(c1 + c2, 1.0);
+}
+
+*/
+
+void cellNoise(struct gfxTexture_t* texture)
+{
+
+}
