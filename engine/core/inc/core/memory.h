@@ -6,13 +6,14 @@ typedef struct memStackMarker_t
 {
     struct memStackMarker_t* prev;
     size_t size;
-} memStackMarker_t
+} memStackMarker_t;
 
 typedef struct memStackAlloc_t
 {
     char* memBase;
     char* memDynamic;
     memStackMarker_t* lastMarker;
+    size_t freeBytes;
 } memStackAlloc_t;
 
 void* memStackAllocStatic(memStackAlloc_t* stack, size_t size);
