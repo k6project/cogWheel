@@ -8,15 +8,15 @@ add_definitions(-DENGINE_NAME="cogWheel" -DENGINE_VERSION=0x000001)
 if(WIN32)
     add_definitions(-DWIN32_LEAN_AND_MEAN -DPLATFORM_WIN32)
 elseif(APPLE)
-    set(CMAKE_OSX_SYSROOT /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.13.sdk)
+    #set(CMAKE_OSX_SYSROOT /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.13.sdk)
     add_definitions(-DPLATFORM_MACOS)
-    add_subdirectory(extern/macos/fltk)
 endif()
 
 set(WORKSPACE_ROOT ${CMAKE_CURRENT_LIST_DIR})
 set(CMAKE_UTILS ${CMAKE_CURRENT_LIST_DIR}/CMakeUtils.txt)
 
 #add_subdirectory(extern/common/shaderc)
+add_subdirectory(extern/common/fltk)
 
 add_subdirectory(engine)
 #add_subdirectory(tools)
