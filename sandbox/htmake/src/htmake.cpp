@@ -1,5 +1,7 @@
 #include <string>
+#include <vector>
 #include <iostream>
+#include <FL/fl_ask.H>
 
 #ifdef WIN32
 #ifdef _MBCS
@@ -61,6 +63,8 @@ static const string& makeHtmlSafe(const string& str)
 
 int main(int argc, const char * argv[])
 {
+    fl_message("This is a test");
+    /*
 	fs::path baseDir = fs::u8path(argv[0]).parent_path();
 	for (const fs::path& path : fs::directory_iterator(baseDir))
 	{
@@ -68,5 +72,6 @@ int main(int argc, const char * argv[])
 	}
     string str(UTF8("(Lübeck & Schwerin) < Köln > Düsseldorf"));
     cout << "<p>" << makeHtmlSafe(str) << "</p>" << endl;
+    */
     return 0;
 }

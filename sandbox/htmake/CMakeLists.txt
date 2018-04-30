@@ -1,6 +1,4 @@
 include(${CMAKE_UTILS})
 get_source_files(${CMAKE_CURRENT_LIST_DIR})
 add_executable(htmake ${SOURCE_FILES})
-#target_compile_definitions(vktest PRIVATE PROGRAM_NAME="VkTest" PROGRAM_VERSION=0)
-#target_include_directories(vktest PRIVATE "${CMAKE_CURRENT_LIST_DIR}/inc")
-#target_include_directories(vktest PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src")
+target_link_libraries(htmake fltk)
