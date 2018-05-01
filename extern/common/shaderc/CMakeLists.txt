@@ -1,66 +1,65 @@
-cmake_minimum_required(VERSION 2.8.12)
-project(shaderc)
-enable_testing()
+add_library(shaderc STATIC IMPORTED GLOBAL)
+if(WIN32)
+    set_property(TARGET shaderc PROPERTY IMPORTED_LOCATION_DEBUG ${WORKSPACE_ROOT}/extern/mswin/shaderc/debug/shadercd.lib)
+    set_property(TARGET shaderc PROPERTY IMPORTED_LOCATION_RELEASE ${WORKSPACE_ROOT}/extern/mswin/shaderc/release/shaderc.lib)
+elseif(APPLE)
+	set_property(TARGET shaderc PROPERTY IMPORTED_LOCATION_DEBUG ${WORKSPACE_ROOT}/extern/macos/shaderc/debug/libshaderc.a)
+    set_property(TARGET shaderc PROPERTY IMPORTED_LOCATION_RELEASE ${WORKSPACE_ROOT}/extern/mcaos/shaderc/release/libshaderc.a)
+endif()
+target_include_directories(shaderc INTERFACE inc/)
 
-message(STATUS "Shaderc: build type is \"${CMAKE_BUILD_TYPE}\".")
-
-option(SHADERC_SKIP_INSTALL "Skip installation" ${SHADERC_SKIP_INSTALL})
-if(NOT ${SHADERC_SKIP_INSTALL})
-  set(SHADERC_ENABLE_INSTALL ON)
+add_library(shaderc_util STATIC IMPORTED GLOBAL)
+if(WIN32)
+elseif(APPLE)
+	set_property(TARGET shaderc_util PROPERTY IMPORTED_LOCATION_DEBUG ${WORKSPACE_ROOT}/extern/macos/shaderc/debug/libshaderc_util.a)
+    set_property(TARGET shaderc_util PROPERTY IMPORTED_LOCATION_RELEASE ${WORKSPACE_ROOT}/extern/mcaos/shaderc/release/libshaderc_util.a)
 endif()
 
-option(SHADERC_SKIP_TESTS "Skip building tests" ${SHADERC_SKIP_TESTS})
-if(NOT ${SHADERC_SKIP_TESTS})
-  set(SHADERC_ENABLE_TESTS ON)
-endif()
-if(${SHADERC_ENABLE_TESTS})
-  message(STATUS "Configuring Shaderc to build tests.")
-else()
-  message(STATUS "Configuring Shaderc to avoid building tests.")
+add_library(glslang STATIC IMPORTED GLOBAL)
+if(WIN32)
+elseif(APPLE)
+	set_property(TARGET glslang PROPERTY IMPORTED_LOCATION_DEBUG ${WORKSPACE_ROOT}/extern/macos/shaderc/debug/libglslang.a)
+    set_property(TARGET glslang PROPERTY IMPORTED_LOCATION_RELEASE ${WORKSPACE_ROOT}/extern/mcaos/shaderc/release/libglslang.a)
 endif()
 
-include(GNUInstallDirs)
-include(cmake/setup_build.cmake)
-include(cmake/utils.cmake)
+add_library(SPIRV-Tools-opt STATIC IMPORTED GLOBAL)
+if(WIN32)
+elseif(APPLE)
+	set_property(TARGET SPIRV-Tools-opt PROPERTY IMPORTED_LOCATION_DEBUG ${WORKSPACE_ROOT}/extern/macos/shaderc/debug/libSPIRV-Tools-opt.a)
+    set_property(TARGET SPIRV-Tools-opt PROPERTY IMPORTED_LOCATION_RELEASE ${WORKSPACE_ROOT}/extern/mcaos/shaderc/release/libSPIRV-Tools-opt.a)
+endif()
 
-add_custom_target(check-copyright ALL
-  ${PYTHON_EXE} ${CMAKE_CURRENT_SOURCE_DIR}/utils/add_copyright.py
-  --check
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  COMMENT "Check copyright")
+add_library(SPIRV-Tools STATIC IMPORTED GLOBAL)
+if(WIN32)
+elseif(APPLE)
+	set_property(TARGET SPIRV-Tools PROPERTY IMPORTED_LOCATION_DEBUG ${WORKSPACE_ROOT}/extern/macos/shaderc/debug/libSPIRV-Tools.a)
+    set_property(TARGET SPIRV-Tools PROPERTY IMPORTED_LOCATION_RELEASE ${WORKSPACE_ROOT}/extern/mcaos/shaderc/release/libSPIRV-Tools.a)
+endif()
 
-add_custom_target(add-copyright
-  ${PYTHON_EXE} ${CMAKE_CURRENT_SOURCE_DIR}/utils/add_copyright.py
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  COMMENT "Add copyright")
+add_library(SPIRV STATIC IMPORTED GLOBAL)
+if(WIN32)
+elseif(APPLE)
+	set_property(TARGET SPIRV PROPERTY IMPORTED_LOCATION_DEBUG ${WORKSPACE_ROOT}/extern/macos/shaderc/debug/libSPIRV.a)
+    set_property(TARGET SPIRV PROPERTY IMPORTED_LOCATION_RELEASE ${WORKSPACE_ROOT}/extern/mcaos/shaderc/release/libSPIRV.a)
+endif()
 
-if(MSVC)
-  option(SHADERC_ENABLE_SHARED_CRT
-          "Use the shared CRT instead of the static CRT"
-          ${SHADERC_ENABLE_SHARED_CRT})
-  if (NOT SHADERC_ENABLE_SHARED_CRT)
-    # Link executables statically by replacing /MD with /MT everywhere.
-    foreach(flag_var
-        CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
-        CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-      if(${flag_var} MATCHES "/MD")
-        string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
-      endif(${flag_var} MATCHES "/MD")
-    endforeach(flag_var)
-  endif(NOT SHADERC_ENABLE_SHARED_CRT)
-endif(MSVC)
+add_library(OGLCompiler STATIC IMPORTED GLOBAL)
+if(WIN32)
+elseif(APPLE)
+	set_property(TARGET OGLCompiler PROPERTY IMPORTED_LOCATION_DEBUG ${WORKSPACE_ROOT}/extern/macos/shaderc/debug/libOGLCompiler.a)
+    set_property(TARGET OGLCompiler PROPERTY IMPORTED_LOCATION_RELEASE ${WORKSPACE_ROOT}/extern/mcaos/shaderc/release/libOGLCompiler.a)
+endif()
 
-# Configure subdirectories.
-# We depend on these for later projects, so they should come first.
-add_subdirectory(third_party)
+add_library(HLSL STATIC IMPORTED GLOBAL)
+if(WIN32)
+elseif(APPLE)
+	set_property(TARGET HLSL PROPERTY IMPORTED_LOCATION_DEBUG ${WORKSPACE_ROOT}/extern/macos/shaderc/debug/libHLSL.a)
+    set_property(TARGET HLSL PROPERTY IMPORTED_LOCATION_RELEASE ${WORKSPACE_ROOT}/extern/mcaos/shaderc/release/libHLSL.a)
+endif()
 
-add_subdirectory(libshaderc_util)
-add_subdirectory(libshaderc)
-add_subdirectory(glslc)
-add_subdirectory(examples)
-
-add_custom_target(build-version
-  ${PYTHON_EXE}
-  ${CMAKE_CURRENT_SOURCE_DIR}/utils/update_build_version.py
-  ${shaderc_SOURCE_DIR} ${spirv-tools_SOURCE_DIR} ${glslang_SOURCE_DIR}
-  COMMENT "Update build-version.inc in the Shaderc build directory (if necessary).")
+add_library(OSDependent STATIC IMPORTED GLOBAL)
+if(WIN32)
+elseif(APPLE)
+	set_property(TARGET OSDependent PROPERTY IMPORTED_LOCATION_DEBUG ${WORKSPACE_ROOT}/extern/macos/shaderc/debug/libOSDependent.a)
+    set_property(TARGET OSDependent PROPERTY IMPORTED_LOCATION_RELEASE ${WORKSPACE_ROOT}/extern/mcaos/shaderc/release/libOSDependent.a)
+endif()
