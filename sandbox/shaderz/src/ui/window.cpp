@@ -13,19 +13,23 @@
 
 enum
 {
-    MENU_FILE,
-        MENU_NEW_SHADER,
+    MENU_FILE_BEGIN,
+        MENU_NEW_SHADER_BEGIN,
             MENU_ITEM_NEW_GLSL_VERTEX_SHADER,
             MENU_ITEM_NEW_GLSL_FRAGMENT_SHADER,
             MENU_ITEM_NEW_GLSL_COMPUTE_SHADER,
+		MENU_NEW_SHADER_END,
         MENU_ITEM_OPEN_SHADER,
         MENU_ITEM_SAVE_SHADER,
         MENU_ITEM_QUIT,
-    MENU_VIEW,
+	MENU_FILE_END,
+    MENU_VIEW_BEGIN,
         MENU_ITEM_SPIRV_DASM,
         MENU_ITEM_SPIRV_CPP,
-    MENU_HELP,
+	MENU_VIEW_END,
+    MENU_HELP_BEGIN,
         MENI_ITEM_ABOUT,
+	MENU_HELP_END,
     MENU_INVALID
 };
 
@@ -65,7 +69,8 @@ void onCompilationSuccess(const compileJob_t* job)
 {
     shaderzGui_t& gui = *static_cast<shaderzGui_t*>(job->context);
     gui.resultView->value(job->code, job->length & INT32_MAX);
-    //gui.menuBar->menu()[MENU_ITEM_SPIRV_DASM].set();
+	Fl_Menu_Item& item = const_cast<Fl_Menu_Item&>(gui.menuBar->menu()[MENU_ITEM_SPIRV_DASM]);
+	gui.menuBar->setonly(&item);
 }
 
 void onCompilationError(const compileJob_t* job)
@@ -143,7 +148,6 @@ void initLogOutput(shaderzGui_t& gui)
 	int y = gui.window->h() - h - gui.spacing;
 	gui.messageLog = new Fl_Multiline_Output(x, y, w, h);
 	gui.messageLog->cursor_color(gui.messageLog->color());
-	gui.messageLog->value("Test line 1\n""Test line 2\n");
     gui.messageLog->textfont(FL_COURIER);
     gui.messageLog->textsize(16);
 }
@@ -189,7 +193,6 @@ void initShaderzGui(shaderzGui_t& gui, int x, int y, int w, int h)
         {0},
     {0}};
 	gui.window = new Fl_Window(x, y, w, h, "ShaderZ GUI");
-    gui.window->begin();
 	gui.spacing = ((gui.window->h() < gui.window->w()) ? gui.window->h() : gui.window->w()) >> 8;
 	gui.spacing = (gui.spacing == 0) ? 2 : gui.spacing;
     gui.menuBar = new Fl_Menu_Bar(0, 0, gui.window->w(), gui.spacing << 3);
