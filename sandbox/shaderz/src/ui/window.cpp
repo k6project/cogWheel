@@ -34,9 +34,9 @@ static const char* const DEFAULT_ENTRY_POINT = "main";
 static const char* const DEFAULT_VS_FILENAME = "NoName.vert";
 static const char* const DEFAULT_VS
 {
-    "#version 450\n\n" "out vec4 vPosition;\n\n"
+    "#version 450\n\n"
     "layout(location = 0) in vec3 aPosition;\n\n"
-    "void main()\n{\n    vPosition = vec4(aPosition, 1.0);\n}\n"
+    "void main()\n{\n    gl_Position = vec4(aPosition, 1.0);\n}\n"
 };
 
 static const char* const DEFAULT_FS_FILENAME = "NoName.frag";
@@ -65,7 +65,13 @@ void onCompilationSuccess(const compileJob_t* job)
 {
     shaderzGui_t& gui = *static_cast<shaderzGui_t*>(job->context);
     gui.resultView->value(job->code, job->length & INT32_MAX);
-    gui.menuBar->find_index("");
+    //gui.menuBar->menu()[MENU_ITEM_SPIRV_DASM].set();
+}
+
+void onCompilationError(const compileJob_t* job)
+{
+	shaderzGui_t& gui = *static_cast<shaderzGui_t*>(job->context);
+	gui.messageLog->value(job->code, job->length & INT32_MAX);
 }
     
 #ifdef __cplusplus
@@ -85,6 +91,7 @@ void onNewVertMenuItem(Fl_Widget* src, void*)
     job.fileName = DEFAULT_VS_FILENAME;
     job.mainProc = DEFAULT_ENTRY_POINT;
     job.onSuccess = &onCompilationSuccess;
+	job.onError = &onCompilationError;
     job.context = &gui;
     compileShader(&job);
 }
@@ -116,7 +123,7 @@ void onOpenMenuItem(Fl_Widget* src, void*)
         "Fragment Shader\t*.frag\n"
         "Compute Shader\t*.comp\n"
     );
-    if (fileDlg.show() == 0);
+    if (fileDlg.show() == 0)
     {
         shaderzGui_t& gui = *static_cast<shaderzGui_t*>(src->user_data());
         gui.messageLog->value(fileDlg.filename());

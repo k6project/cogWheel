@@ -2,6 +2,7 @@
 #include "callbacks.h"
 
 #include <assert.h>
+#include <string.h>
 
 #include <shaderc/shaderc.h>
 
@@ -22,6 +23,12 @@ void compileShader(compileJob_t* job)
         job->length = shaderc_result_get_length(result);
         job->onSuccess(job);
     }
+	else
+	{
+		job->code = shaderc_result_get_error_message(result);
+		job->length = strlen(job->code);
+		job->onError(job);
+	}
     shaderc_compiler_release(compiler);
 }
 
