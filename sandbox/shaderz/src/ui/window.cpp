@@ -1,4 +1,5 @@
 #include "shaderz.h"
+#include "../callbacks.h"
 
 #include <FL/Fl.H>
 #include <FL/Fl_Box.H>
@@ -10,6 +11,27 @@
 #include <FL/Fl_Multiline_Output.H>
 #include <FL/Fl_Native_File_Chooser.H>
 
+enum
+{
+    MENU_FILE,
+        MENU_NEW_SHADER,
+            MENU_ITEM_NEW_GLSL_VERTEX_SHADER,
+            MENU_ITEM_NEW_GLSL_FRAGMENT_SHADER,
+            MENU_ITEM_NEW_GLSL_COMPUTE_SHADER,
+        MENU_ITEM_OPEN_SHADER,
+        MENU_ITEM_SAVE_SHADER,
+        MENU_ITEM_QUIT,
+    MENU_VIEW,
+        MENU_ITEM_SPIRV_DASM,
+        MENU_ITEM_SPIRV_CPP,
+    MENU_HELP,
+        MENI_ITEM_ABOUT,
+    MENU_INVALID
+};
+
+static const char* const DEFAULT_ENTRY_POINT = "main";
+
+static const char* const DEFAULT_VS_FILENAME = "NoName.vert";
 static const char* const DEFAULT_VS
 {
     "#version 450\n\n" "out vec4 vPosition;\n\n"
@@ -17,6 +39,7 @@ static const char* const DEFAULT_VS
     "void main()\n{\n    vPosition = vec4(aPosition, 1.0);\n}\n"
 };
 
+static const char* const DEFAULT_FS_FILENAME = "NoName.frag";
 static const char* const DEFAULT_FS
 {
     "#version 450\n\n" "layout(location = 0) out vec4 vFragColor;\n\n"
@@ -33,16 +56,54 @@ struct shaderzGui_t
 	int spacing;
 };
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+    
+void onCompilationSuccess(const compileJob_t* job)
+{
+    shaderzGui_t& gui = *static_cast<shaderzGui_t*>(job->context);
+    gui.resultView->value(job->code, job->length & INT32_MAX);
+    gui.menuBar->find_index("");
+}
+    
+#ifdef __cplusplus
+}
+#endif
+
 void onNewVertMenuItem(Fl_Widget* src, void*)
 {
     shaderzGui_t& gui = *static_cast<shaderzGui_t*>(src->user_data());
     gui.sourceCode->value(DEFAULT_VS);
+    compileJob_t job = {};
+    job.code = gui.sourceCode->value();
+    job.length = gui.sourceCode->size();
+    job.jobType = COMPILE_JOB_SPIRV_ASM;
+    job.lang = shaderc_source_language_glsl;
+    job.type = shaderc_vertex_shader;
+    job.fileName = DEFAULT_VS_FILENAME;
+    job.mainProc = DEFAULT_ENTRY_POINT;
+    job.onSuccess = &onCompilationSuccess;
+    job.context = &gui;
+    compileShader(&job);
 }
 
 void onNewFragMenuItem(Fl_Widget* src, void*)
 {
     shaderzGui_t& gui = *static_cast<shaderzGui_t*>(src->user_data());
     gui.sourceCode->value(DEFAULT_FS);
+    compileJob_t job = {};
+    job.code = gui.sourceCode->value();
+    job.length = gui.sourceCode->size();
+    job.jobType = COMPILE_JOB_SPIRV_ASM;
+    job.lang = shaderc_source_language_glsl;
+    job.type = shaderc_fragment_shader;
+    job.fileName = DEFAULT_FS_FILENAME;
+    job.mainProc = DEFAULT_ENTRY_POINT;
+    job.onSuccess = &onCompilationSuccess;
+    job.context = &gui;
+    compileShader(&job);
 }
 
 void onOpenMenuItem(Fl_Widget* src, void*)
@@ -94,6 +155,8 @@ void initMainViews(shaderzGui_t& gui)
 	w = wTotal - w;
 	gui.resultView = new Fl_Multiline_Output(x, y, w, h);
 	gui.resultView->cursor_color(gui.resultView->color());
+    gui.resultView->textfont(FL_COURIER);
+    gui.resultView->textsize(16);
 }
 
 void initShaderzGui(shaderzGui_t& gui, int x, int y, int w, int h)
