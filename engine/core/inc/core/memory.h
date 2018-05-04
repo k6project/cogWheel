@@ -2,6 +2,8 @@
 
 #include <stddef.h>
 
+#define MEM_ALIGN_DEFAULT 16
+
 typedef struct memStackMarker_t
 {
     struct memStackMarker_t* prev;
@@ -11,16 +13,14 @@ typedef struct memStackMarker_t
 typedef struct memStackAlloc_t
 {
     char* memBase;
-    char* memDynamic;
+    char* memLast;
     memStackMarker_t* lastMarker;
     size_t freeBytes;
 } memStackAlloc_t;
 
-void* memStackAllocStatic(memStackAlloc_t* stack, size_t size);
+void* memStackAlloc(memStackAlloc_t* stack, size_t size);
 
-void* memStackAlloc(memStackAlloc_t* stack, size_t size, memStackMarker_t* marker);
-
-void memStackFree(memStackMarker_t* marker);
+void memStackFree(memStackAlloc_t* stack, void* mem);
 
 /*
  maker: pointer to prev marker + allocation size (16 bytes)
@@ -28,5 +28,8 @@ void memStackFree(memStackMarker_t* marker);
      create first marker
  else:
      take last marker, add allocation size of last marker -> place new marker, set size
+ 
+ 
+ 
  */
 

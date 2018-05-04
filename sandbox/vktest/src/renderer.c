@@ -118,10 +118,10 @@ static VkResult gfxDeviceSetupCallback(void* context,
 							gfx->presentMode = modes[k];
 						}
 						break;
+                    default:
+                        break;
 					}
 				}
-                /*
-                 vkGetPhysicalDeviceSurfaceCapabilitiesKHR(info->handle, surface, &caps->surfaceCaps);*/
                 conf->queues[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
                 conf->queues[0].queueFamilyIndex = j;
                 conf->queues[0].queueCount = 1;
