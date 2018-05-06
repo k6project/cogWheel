@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include <core/math.h>
+#include <core/memory.h>
 
 #define GFX_LINEAR_ALLOC_DECLARE() \
 	uint8_t *linearAllocMem, *linearAllocPos, *linearAllocMark; \
@@ -57,6 +58,7 @@ typedef struct gfxTexture_t
 typedef struct gfxContext_t
 {
 	GFX_LINEAR_ALLOC_DECLARE()
+    memStackAlloc_t memory;
 	VkDevice device;
 	VkSurfaceKHR surface;
 	VkExtent2D surfaceSize;
@@ -80,6 +82,10 @@ typedef struct gfxContext_t
 } gfxContext_t;
 
 struct GLFWwindow;
+
+/* typedef struct gfxRenderState_t */
+/* gfxCreateRenderState */
+/* gfxDestroyRenderState */
 
 VkResult gfxCreateBuffer(gfxContext_t* gfx, gfxBuffer_t* buffer);
 
