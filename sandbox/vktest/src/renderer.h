@@ -8,10 +8,6 @@
 #include <core/math.h>
 #include <core/memory.h>
 
-#define GFX_LINEAR_ALLOC_DECLARE() \
-	uint8_t *linearAllocMem, *linearAllocPos, *linearAllocMark; \
-	size_t linearAllocMax, linearAllocRem;
-
 typedef enum gfxDataFormat_t
 {
     GFX_FORMAT_BRGA8 = VK_FORMAT_B8G8R8A8_UNORM,
@@ -57,8 +53,7 @@ typedef struct gfxTexture_t
 
 typedef struct gfxContext_t
 {
-	GFX_LINEAR_ALLOC_DECLARE()
-    memStackAlloc_t memory;
+    memStackAlloc_t* memory;
 	VkDevice device;
 	VkSurfaceKHR surface;
 	VkExtent2D surfaceSize;

@@ -1,6 +1,8 @@
 #include <core/memory.h>
 
 #include <assert.h>
+#include <stdlib.h>
+#include <string.h>
 
 /*is POT: n and n-1 == 0*/
 /* decrement changes least significant non-zero bit to zero, and all bits to the right of it to 1 */
@@ -14,38 +16,77 @@
 #define ALIGN_MASK ((size_t)(MEM_ALIGN_DEFAULT-1))
 #endif
 
+#define BIT_SET(addr,b) do {*(addr+(b>>3u)) |= (1u<<(b&7u));} while(0)
+#define BIT_UNSET(addr,b) do {*(addr+(b>>3u)) &= ~(1u<<(b&7u));} while(0)
+#define BIT_TEST(addr,b) ((*(addr+(b>>3u)) & (1u<<(b&7u))) == (1u<<(b&7u)))
+
 #define IS_ALIGNED(addr) (!(((size_t)addr) & ALIGN_MASK))
+
+struct memStackMarker_t
+{
+    struct memStackMarker_t* prev;
+    size_t size;
+} __attribute__((aligned(MEM_ALIGN_DEFAULT)));
+typedef struct memStackMarker_t memStackMarker_t;
+
+struct memStackAlloc_t
+{
+    char* memLast;
+    struct memStackMarker_t* lastMarker;
+} __attribute__((aligned(MEM_ALIGN_DEFAULT)));
+
+void memStackInit(memStackAlloc_t** outStack, size_t size)
+{
+    memStackDestroy(outStack);
+    size_t allocSize = (size + ALIGN_MASK) & (~ALIGN_MASK);
+    size_t maskSize = (allocSize / sizeof(memStackAlloc_t)) >> 3;
+    char* memory = (char*)calloc(1, allocSize + maskSize + sizeof(memStackAlloc_t));
+    memStackAlloc_t* stack = (memStackAlloc_t*)memory;
+    stack->memLast = memory + sizeof(memStackAlloc_t) + allocSize;
+    *outStack = stack;
+}
 
 void* memStackAlloc(memStackAlloc_t* stack, size_t size)
 {
     void* result = NULL;
-    size += sizeof(memStackMarker_t);
+    char* base = ((char*)stack) + sizeof(memStackAlloc_t);
     size = (size + ALIGN_MASK) & (~ALIGN_MASK);
-    if (size <= stack->freeBytes)
+    size += sizeof(memStackMarker_t);
+    memStackMarker_t* last = stack->lastMarker;
+    char* markerPos = (last) ? ((char*)last + last->size + sizeof(memStackMarker_t)) : base;
+    if (size <= stack->memLast - markerPos)
     {
-        memStackMarker_t* marker = NULL;
-        if (!stack->lastMarker)
-        {
-            marker = (memStackMarker_t*)stack->memBase;
-        }
-        else
-        {
-            marker = (memStackMarker_t*)((char*)stack->lastMarker + stack->lastMarker->size);
-        }
+        memStackMarker_t* marker = (memStackMarker_t*)markerPos;
+        unsigned int markerBit = ((char*)marker - base) / ((unsigned int)MEM_ALIGN_DEFAULT);
+        assert(!BIT_TEST(stack->memLast, markerBit));
         result = ((char*)marker) + sizeof(memStackMarker_t);
+        BIT_SET(stack->memLast, markerBit);
         marker->prev = stack->lastMarker;
+        marker->size = size - sizeof(memStackMarker_t);
         stack->lastMarker = marker;
-        stack->freeBytes -= size;
     }
     return result;
 }
 
 void memStackFree(memStackAlloc_t* stack, void* mem)
 {
-    /* todo: check for passing a pointer in the middle of allocation */
-    char* addr = (mem) ? ((char*)mem) - sizeof(memStackMarker_t) : stack->memBase;
-    assert(IS_ALIGNED(addr) && (addr > stack->memBase) && (addr < stack->memLast));
+    char* base = ((char*)stack) + sizeof(memStackAlloc_t);
+    char* addr = (mem) ? ((char*)mem) - sizeof(memStackMarker_t) : base;
+    assert(IS_ALIGNED(addr) && (addr > base) && (addr < stack->memLast));
+    unsigned int markerBit = (addr - base) / ((unsigned int)MEM_ALIGN_DEFAULT);
+    assert(BIT_TEST(stack->memLast, markerBit));
     memStackMarker_t* marker = (memStackMarker_t*)addr;
     stack->lastMarker = marker->prev;
-    stack->freeBytes += marker->size;
+    BIT_UNSET(stack->memLast, markerBit);
+}
+
+void memStackDestroy(memStackAlloc_t** outStack)
+{
+    assert(outStack);
+    memStackAlloc_t* stack = *outStack;
+    if (stack)
+    {
+        free(stack);
+        *outStack = NULL;
+    }
 }

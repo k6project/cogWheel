@@ -17,7 +17,7 @@ int main(int argc, const char * argv[])
     if (glfwInit())
     {
         GLFWmonitor* monitor = NULL;
-        int width = 1280, height = 800;
+        int width = 768, height = 768;
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 #ifdef PROGRAM_FULLSCREEN
         monitor = glfwGetPrimaryMonitor();

@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <alloca.h>
 
 #include "renderer.h"
 
@@ -132,7 +133,45 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
 */
 
-void cellNoise(struct gfxTexture_t* texture)
+static void voronoiTile(uint32_t blockR, uint32_t blockC)
 {
+    uint32_t seed = ((blockR) << 10) >> 6;
+    seed = ((seed + blockC) << 10) >> 6;
+    prng_t prng = MATH_PRNG(seed);
+}
 
+void voronoiNoise(struct gfxTexture_t* texture, int gridW, int gridH)
+{
+    assert(gridW > 0 && gridH > 0);
+    char* mem = (char*)texture->imageData;
+    size_t dataSize = texture->width * texture->height;
+    unsigned int* hash = alloca(gridH * gridW * sizeof(unsigned int));
+    for (int r = 0; r < gridH; r++)
+    {
+        for (int c = 0; c < gridW; c++)
+        {
+            unsigned int seed = (((unsigned int)r) << 10) >> 6;
+            hash[r * gridW + c] = ((seed + c) << 10) >> 6;
+        }
+    }
+    if (!texture->imageData)
+    {
+        mem = (char*)malloc(dataSize);
+        texture->imageData = mem;
+    }
+    int blockW = texture->width / gridW;
+    int blockH = texture->height / gridH;
+    for (size_t i = 0; i < dataSize; i++)
+    {
+        int row = i / texture->width;
+        int col = i % texture->width;
+        int blockR = row / gridH, blockY = row % gridH;
+        int blockC = col / gridW, blockX = col % gridW;
+        struct { int center[4], top[4], bottom[4]; } blocks =
+        {
+            { blockR, blockC, blockY, blockX },
+            { (blockR) ? blockR - 1 : gridH - 1, blockC, blockY + blockH, blockX },
+            { (blockR + 1 < gridH) ? blockR + 1 : 0, blockC, blockY - blockH, blockX }
+        };
+    }
 }

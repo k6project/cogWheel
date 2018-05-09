@@ -10,45 +10,6 @@
 #define GFX_STAGING_BUFFER_SIZE (16u << 20)
 #define GFX_LINEAR_ALLOC_CAPACITY (4u << 20)
 
-#define GFX_LINEAR_ALLOC_INIT(g,s) \
-	do { g->linearAllocPos = g->linearAllocMark = g->linearAllocMem = (uint8_t*)malloc(s);\
-         g->linearAllocMax = g->linearAllocRem = s;} while(0)
-
-#define GFX_LINEAR_ALLOC_DESTROY(g) \
-	do { free(g->linearAllocMem); \
-		 g->linearAllocPos = g->linearAllocMark = g->linearAllocMem = NULL;\
-		 g->linearAllocMax = g->linearAllocRem = 0;} while(0)
-
-#define GFX_LINEAR_ALLOC_RESET(g) \
-	do { g->linearAllocPos = g->linearAllocMark;\
-		 g->linearAllocRem = g->linearAllocMax - (g->linearAllocMark - g->linearAllocMem);} while(0)
-
-static void* gfxMalloc(gfxContext_t* gfx, size_t size)
-{
-	void* result = NULL;
-	if (gfx->linearAllocRem >= size)
-	{
-		result = gfx->linearAllocPos;
-		gfx->linearAllocPos += size;
-		gfx->linearAllocRem -= size;
-	}
-    return result;
-}
-
-static void* gfxMallocStatic(gfxContext_t* gfx, size_t size)
-{
-	void* result = NULL;
-	if (gfx->linearAllocPos == gfx->linearAllocMark)
-	{
-		result = gfxMalloc(gfx, size);
-		if (result)
-		{
-			gfx->linearAllocMark = gfx->linearAllocPos;
-		}
-	}
-	return result;
-}
-
 static VkResult gfxDeviceSetupCallback(void* context,
     vklDeviceSetup_t* conf,
     const vklDeviceInfo_t* devices,
@@ -87,7 +48,7 @@ static VkResult gfxDeviceSetupCallback(void* context,
 				gfx->numBuffers = (surfaceCaps.minImageCount > gfx->numBuffers) ? surfaceCaps.minImageCount : gfx->numBuffers;
 				gfx->numBuffers = (surfaceCaps.maxImageCount < gfx->numBuffers) ? surfaceCaps.maxImageCount : gfx->numBuffers;
                 VKCHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &count, NULL));
-                assert(formats = (VkSurfaceFormatKHR*)gfxMalloc(gfx, count * sizeof(VkSurfaceFormatKHR)));
+                assert(formats = (VkSurfaceFormatKHR*)memStackAlloc(gfx->memory, count * sizeof(VkSurfaceFormatKHR)));
                 VKCHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &count, formats));
                 for (uint32_t k = 0; k <= count; k++)
                 {
@@ -99,7 +60,7 @@ static VkResult gfxDeviceSetupCallback(void* context,
                     }
                 }
 				VKCHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(info->handle, surface, &count, NULL));
-				assert(modes = (VkPresentModeKHR*)gfxMalloc(gfx, count * sizeof(VkPresentModeKHR)));
+				assert(modes = (VkPresentModeKHR*)memStackAlloc(gfx->memory, count * sizeof(VkPresentModeKHR)));
 				VKCHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(info->handle, surface, &count, modes));
 				for (uint32_t k = 0; k < count && gfx->presentMode != VK_PRESENT_MODE_MAILBOX_KHR; k++)
 				{
@@ -262,11 +223,11 @@ void gfxDestroyTexture(gfxContext_t* gfx, gfxTexture_t* texture)
 
 VkResult gfxCreateDevice(gfxContext_t* gfx, GLFWwindow* window)
 {
-	GFX_LINEAR_ALLOC_INIT(gfx, GFX_LINEAR_ALLOC_CAPACITY);
+    memStackInit(&gfx->memory, GFX_LINEAR_ALLOC_CAPACITY);
 	size_t imbBytes = GFX_DEFAULT_NUM_BUFFERS * sizeof(gfxTexture_t);
     size_t cmbBytes = GFX_DEFAULT_NUM_BUFFERS * sizeof(VkCommandBuffer);
     size_t staticBytes = imbBytes + cmbBytes;
-    uint8_t* staticMem = (uint8_t*)gfxMallocStatic(gfx, staticBytes);
+    uint8_t* staticMem = (uint8_t*)memStackAlloc(gfx->memory, staticBytes);
     memset(staticMem, 0, staticBytes);
 	gfx->imgBuffers = (gfxTexture_t*)staticMem;
     gfx->cmdBuffers = (VkCommandBuffer*)(staticMem + imbBytes);
@@ -339,7 +300,7 @@ void gfxDestroyDevice(gfxContext_t* gfx)
 	vkDestroySwapchainKHR(gfx->device, gfx->swapChain, NULL);
 	vkDestroyDevice(gfx->device, NULL);
 	vklDestroySurface(gfx->surface);
-	GFX_LINEAR_ALLOC_DESTROY(gfx);
+    memStackDestroy(&gfx->memory);
 	gfx->surface = NULL;
 	gfx->device = NULL;
 }
@@ -354,9 +315,9 @@ void gfxUpdateResources(gfxContext_t* gfx,
     size_t availBytes = gfx->stagingBuffer.size;
     uint8_t* buff = (uint8_t*)gfx->stagingBuffer.hostPtr;
     size_t tmpBytes = numTextures * sizeof(VkImageMemoryBarrier);
-    VkImageMemoryBarrier* barriers = (VkImageMemoryBarrier*)gfxMalloc(gfx, tmpBytes);
+    VkImageMemoryBarrier* barriers = (VkImageMemoryBarrier*)memStackAlloc(gfx->memory, tmpBytes);
     tmpBytes = numTextures * sizeof(VkBufferImageCopy);
-    VkBufferImageCopy* regions = (VkBufferImageCopy*)gfxMalloc(gfx, tmpBytes);
+    VkBufferImageCopy* regions = (VkBufferImageCopy*)memStackAlloc(gfx->memory, tmpBytes);
     memset(regions, 0, tmpBytes);
     for (size_t i = 0; i < numTextures; i++)
     {
@@ -407,6 +368,8 @@ void gfxUpdateResources(gfxContext_t* gfx,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             1, &regions[i]);
     }
+    memStackFree(gfx->memory, regions);
+    memStackFree(gfx->memory, barriers);
 }
 
 void gfxClearRenderTarget(gfxContext_t* gfx,
@@ -492,7 +455,6 @@ void gfxBlitTexture(gfxContext_t* gfx,
 
 void gfxBeginFrame(gfxContext_t* gfx)
 {
-	GFX_LINEAR_ALLOC_RESET(gfx);
     VKCHECK(vkQueueWaitIdle(gfx->cmdQueue));
 	VKCHECK(vkAcquireNextImageKHR(gfx->device, gfx->swapChain, UINT64_MAX, gfx->canDraw, VK_NULL_HANDLE, &gfx->bufferIdx));
     gfx->backBuffer = &gfx->imgBuffers[gfx->bufferIdx];
