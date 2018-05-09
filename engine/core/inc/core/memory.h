@@ -4,6 +4,12 @@
 
 #define MEM_ALIGN_DEFAULT 16
 
+#ifdef WIN32
+#define ALIGNED(n) __declspec( align( n ) )
+#else
+#define ALIGNED(n) __attribute__((aligned( n )))
+#endif
+
 struct memStackMarker_t;
 
 struct memStackAlloc_t;

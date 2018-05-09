@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 /*is POT: n and n-1 == 0*/
 /* decrement changes least significant non-zero bit to zero, and all bits to the right of it to 1 */
@@ -26,14 +27,14 @@ struct memStackMarker_t
 {
     struct memStackMarker_t* prev;
     size_t size;
-} __attribute__((aligned(MEM_ALIGN_DEFAULT)));
+} ALIGNED(MEM_ALIGN_DEFAULT);
 typedef struct memStackMarker_t memStackMarker_t;
 
 struct memStackAlloc_t
 {
     char* memLast;
     struct memStackMarker_t* lastMarker;
-} __attribute__((aligned(MEM_ALIGN_DEFAULT)));
+} ALIGNED(MEM_ALIGN_DEFAULT);
 
 void memStackInit(memStackAlloc_t** outStack, size_t size)
 {
@@ -54,10 +55,10 @@ void* memStackAlloc(memStackAlloc_t* stack, size_t size)
     size += sizeof(memStackMarker_t);
     memStackMarker_t* last = stack->lastMarker;
     char* markerPos = (last) ? ((char*)last + last->size + sizeof(memStackMarker_t)) : base;
-    if (size <= stack->memLast - markerPos)
+    if (size <= (size_t)(stack->memLast - markerPos))
     {
         memStackMarker_t* marker = (memStackMarker_t*)markerPos;
-        unsigned int markerBit = ((char*)marker - base) / ((unsigned int)MEM_ALIGN_DEFAULT);
+        unsigned int markerBit = (((char*)marker - base) & UINT32_MAX) / ((unsigned int)MEM_ALIGN_DEFAULT);
         assert(!BIT_TEST(stack->memLast, markerBit));
         result = ((char*)marker) + sizeof(memStackMarker_t);
         BIT_SET(stack->memLast, markerBit);
@@ -73,7 +74,7 @@ void memStackFree(memStackAlloc_t* stack, void* mem)
     char* base = ((char*)stack) + sizeof(memStackAlloc_t);
     char* addr = (mem) ? ((char*)mem) - sizeof(memStackMarker_t) : base;
     assert(IS_ALIGNED(addr) && (addr > base) && (addr < stack->memLast));
-    unsigned int markerBit = (addr - base) / ((unsigned int)MEM_ALIGN_DEFAULT);
+    unsigned int markerBit = ((addr - base) & UINT32_MAX) / ((unsigned int)MEM_ALIGN_DEFAULT);
     assert(BIT_TEST(stack->memLast, markerBit));
     memStackMarker_t* marker = (memStackMarker_t*)addr;
     stack->lastMarker = marker->prev;

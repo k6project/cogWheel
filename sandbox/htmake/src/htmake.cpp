@@ -9,15 +9,20 @@
 #else
 #error "Only multibyte strings are supported on Windows"
 #endif
-#include <filesystem>
-namespace fs = std::experimental::filesystem;
+#include <direct.h>
+#define getcwd _getcwd
 #else
-#define UTF8(s) u8 ## s
+#include <unistd.h>
 #endif
 
 using namespace std;
 
-static const string& makeHtmlSafe(const string& str)
+namespace htmake
+{
+	const string& Escape(const string& str);
+}
+
+const string& htmake::Escape(const string& str)
 {
 	thread_local static string result;
     using pattern_t = pair<string, string>;
@@ -63,6 +68,12 @@ static const string& makeHtmlSafe(const string& str)
 
 int main(int argc, const char * argv[])
 {
+	char pathBuffer[256];
+	getcwd(pathBuffer, sizeof(pathBuffer));
+	/*
+		parse arguments
+	*/
+
     fl_message("This is a test");
     /*
 	fs::path baseDir = fs::u8path(argv[0]).parent_path();
