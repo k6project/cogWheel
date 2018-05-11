@@ -36,8 +36,9 @@ int main(int argc, const char * argv[])
 			tex.width = width;
 			tex.height = height;
             tex.renderTarget = true;
-            checkerboard(&tex);
-			assert(gfxCreateTexture(&gfx, &tex) == VK_SUCCESS);
+            //checkerboard(&tex);
+            voronoiNoise(&tex, 6, 6);
+            assert(gfxCreateTexture(&gfx, &tex) == VK_SUCCESS);
             while (!glfwWindowShouldClose(window))
             {
                 gfxBeginFrame(&gfx);

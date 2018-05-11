@@ -26,8 +26,13 @@ float mathRandomf(prng_t prng)
     return mathRandomu(prng) / ((float)(0xFFFFFFFFu));
 }
 
+typedef int32_t vec2i_t[2];
+typedef int32_t vec4i_t[4];
+
+typedef float vec2f_t[2];
 typedef float vec3f_t[3];
 typedef float vec4f_t[4];
+
 typedef float mat4f_t[4][4];
 
 typedef vec4f_t quat_t;
