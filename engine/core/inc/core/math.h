@@ -27,17 +27,31 @@ float mathRandomf(prng_t prng)
 }
 
 typedef int32_t vec2i_t[2];
+typedef int32_t vec3i_t[3];
 typedef int32_t vec4i_t[4];
+
+typedef uint32_t vec2u_t[2];
+typedef uint32_t vec3u_t[3];
+typedef uint32_t vec4u_t[4];
 
 typedef float vec2f_t[2];
 typedef float vec3f_t[3];
 typedef float vec4f_t[4];
+
+#define VEC2_MOV(dv, sv) do{dv[0]=sv[0];dv[1]=sv[1];}while(0)
 
 typedef float mat4f_t[4][4];
 
 typedef vec4f_t quat_t;
 
 #define mathDeg2Rad(d) (d*0.0174532925f)
+
+MATH_INLINE
+void mathVec2fSub(vec2f_t dest, const vec2f_t a, const vec2f_t b)
+{
+	dest[0] = a[0] - b[0];
+	dest[1] = a[1] - b[1];
+}
 
 MATH_INLINE
 void mathVec3fSub(vec3f_t dest, const vec3f_t a, const vec3f_t b)
@@ -56,9 +70,21 @@ void mathVec3fCross(vec3f_t dest, const vec3f_t a, const vec3f_t b)
 }
 
 MATH_INLINE
+float mathVec2fDot(const vec2f_t a, const vec2f_t b)
+{
+	return a[0] * b[0] + a[1] * b[1];
+}
+
+MATH_INLINE
 float mathVec3fDot(const vec3f_t a, const vec3f_t b)
 {
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+MATH_INLINE
+float mathVec2fLength(const vec2f_t a)
+{
+	return sqrtf(mathVec2fDot(a, a));
 }
 
 MATH_INLINE
