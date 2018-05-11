@@ -79,6 +79,7 @@ void onCompilationSuccess(const compileJob_t* job)
     gui.resultView->value(job->code, job->length & INT32_MAX);
 	Fl_Menu_Item& item = const_cast<Fl_Menu_Item&>(gui.menuBar->menu()[MENU_ITEM_SPIRV_DASM]);
 	gui.menuBar->setonly(&item);
+	Fl::copy(job->code, job->length & INT32_MAX);
 }
 
 void onCompilationError(const compileJob_t* job)
@@ -181,7 +182,7 @@ void initMainViews(shaderzGui_t& gui)
 	int x = gui.spacing;
 	int wTotal = gui.window->w() - gui.spacing * 3;
     int w = wTotal >> 1;
-	int y = gui.spacing + gui.menuBar->h();
+	int y = gui.menuBar->h();
 	int h = gui.window->h() - gui.messageLog->h() - gui.spacing * 3 - gui.menuBar->h();
 	gui.sourceCode = new Fl_Multiline_Input(x, y, w, h);
     gui.sourceCode->textfont(FL_COURIER);
@@ -219,11 +220,12 @@ void initShaderzGui(shaderzGui_t& gui, int x, int y, int w, int h)
 	gui.window = new Fl_Window(x, y, w, h, "ShaderZ GUI");
 	gui.spacing = ((gui.window->h() < gui.window->w()) ? gui.window->h() : gui.window->w()) >> 8;
 	gui.spacing = (gui.spacing == 0) ? 2 : gui.spacing;
-    gui.menuBar = new Fl_Menu_Bar(0, 0, gui.window->w(), gui.spacing << 3);
+    gui.menuBar = new Fl_Menu_Bar(0, 0, gui.window->w(), 24);
     menuItems[MENU_ITEM_SPIRV_CPP].set();
     gui.menuBar->copy(menuItems, &gui);
     gui.menuBar->box(FL_FLAT_BOX);
     gui.menuBar->user_data(&gui);
+	gui.menuBar->textsize(12);
 	initLogOutput(gui);
 	initMainViews(gui);
 	gui.window->end();
