@@ -25,6 +25,7 @@ elseif(APPLE)
 	set_property(TARGET glslang PROPERTY IMPORTED_LOCATION_DEBUG ${WORKSPACE_ROOT}/extern/macos/shaderc/debug/libglslang.a)
     set_property(TARGET glslang PROPERTY IMPORTED_LOCATION_RELEASE ${WORKSPACE_ROOT}/extern/mcaos/shaderc/release/libglslang.a)
 endif()
+target_include_directories(glslang INTERFACE ../glslang/Public)
 
 add_library(SPIRV-Tools-opt STATIC IMPORTED GLOBAL)
 if(WIN32)

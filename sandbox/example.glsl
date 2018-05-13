@@ -1,10 +1,8 @@
-#version 450 core
-
 #if defined _VS_
 #define INTERP(n) out n
-#elseif defined _FS_
+#elif defined _FS_
 #define INTERP(n) in n
-#end
+#endif
 
 #ifndef _CS_
 
