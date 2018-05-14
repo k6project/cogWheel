@@ -1,14 +1,12 @@
-#include <ShaderLang.h>
-
-#ifdef _MSC_VER
-#include <direct.h>
-#define getcwd _getcwd
-#else
-#include <unistd.h>
-#endif
-
+#include <vector>
 #include <cstdio>
+#include <cstdlib>
+#include <ShaderLang.h>
+#include <SPIRV/GLSL.std.450.h>
+#include <SPIRV/GlslangToSpv.h>
+#include <SPIRV/disassemble.h>
 
+using namespace std;
 using namespace glslang;
 
 static TBuiltInResource defaults
@@ -113,7 +111,11 @@ bool loadShaderFile(const char* path, char*& data, int& size)
 {
 	FILE* fp = nullptr; 
     bool result = false;
+#ifdef _MSC_VER
 	fopen_s(&fp, path, "rb");
+#elif
+	fp = fopen_s(path, "rb");
+#endif
     if (fp)
     {
         fseek(fp, 0, SEEK_END);
@@ -127,7 +129,7 @@ bool loadShaderFile(const char* path, char*& data, int& size)
         }
         else
         {
-            delete buff;
+            free(buff);
         }
         fclose(fp);
     }
@@ -142,40 +144,60 @@ int main(int argc, const char * argv[])
     {
         if (InitializeProcess())
         {
-            std::string result;
-			TProgram program;
             TShader vert(EShLangVertex);
             TShader frag(EShLangFragment);
-            TShader::ForbidInclude includer;
+			TShader::ForbidIncluder includer;
             vert.setEntryPoint("main");
             vert.setPreamble("#define _VS_\n");
             vert.setStringsWithLengths(&shaderData, &shaderSize, 1);
-			vert.setEnvInput(EShSourceGlsl, EShLangVertex, EShClientNone, 0);
+			vert.setEnvInput(EShSourceGlsl, EShLangVertex, EShClientVulkan, EShTargetVulkan_1_0);
+			frag.setEntryPoint("main");
+			frag.setPreamble("#define _FS_\n");
+			frag.setStringsWithLengths(&shaderData, &shaderSize, 1);
+			frag.setEnvInput(EShSourceGlsl, EShLangFragment, EShClientVulkan, EShTargetVulkan_1_0);
             if (!vert.parse(&defaults, 450, ECoreProfile, false, true, EShMsgDefault, includer))
             {
                 printf("%s\n", vert.getInfoLog());
             }
-            else
-            {
-                printf("%s\n", result.c_str());
-            }
-            frag.setEntryPoint("main");
-            frag.setPreamble("#define _FS_\n");
-            frag.setStringsWithLengths(&shaderData, &shaderSize, 1);
-            if (!frag.parse(&defaults, 450, ECoreProfile, false, true, EShMsgDefault, includer))
-            {
-                printf("%s\n", frag.getInfoLog());
-            }
-            else
-            {
-                printf("%s\n", result.c_str());
-            }
-            program.addShader(&vert);
-            program.addShader(&frag);
-            if (!program.link(EShMsgDefault))
-            {
-                printf("%s\n", program.getInfoLog());
-            }
+			else 
+			{
+				if (!frag.parse(&defaults, 450, ECoreProfile, false, true, EShMsgDefault, includer))
+				{
+					printf("%s\n", frag.getInfoLog());
+				}
+				else
+				{
+					TProgram program;
+					program.addShader(&vert);
+					program.addShader(&frag);
+					if (!program.link(EShMsgDefault))
+					{
+						printf("%s\n", program.getInfoLog());
+					}
+					else
+					{
+						program.buildReflection();
+						vector<unsigned int> spvBuffer;
+						for (int i = 0; i < EShLangCount; i++)
+						{
+							EShLanguage stage = static_cast<EShLanguage>(i);
+							if (TIntermediate* tmp = program.getIntermediate(stage))
+							{
+								SpvOptions spvOptions;
+								spv::SpvBuildLogger logger;
+								spvOptions.optimizeSize = false;
+								spvOptions.generateDebugInfo = true;
+								spvOptions.disableOptimizer = true;
+								GlslangToSpv(*tmp, spvBuffer, &logger, &spvOptions);
+								//glslang::OutputSpvBin(spvBuffer, "filename.xxx");
+								//write words as sequences of 4 bytes, without order adjustments
+								//or glslang::OutputSpvHex
+								//spv::Disassemble(cout, spvBuffer);
+							}
+						}
+					}
+				}
+			}
             FinalizeProcess();
         }
         delete shaderData;

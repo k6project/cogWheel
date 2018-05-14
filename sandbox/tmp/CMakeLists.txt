@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 2.8)
+project(SPVUtil)
+add_subdirectory(glslang-master)
+target_include_directories(glslang PUBLIC glslang-master/glslang/Public)
+target_include_directories(glslang PUBLIC glslang-master/)
+add_executable(spvutil spvutil.cpp)
+target_link_libraries(spvutil glslang SPIRV)

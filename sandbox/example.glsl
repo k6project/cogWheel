@@ -1,6 +1,8 @@
-#if defined _VS_
+#ifdef _VS_
 #define INTERP(n) out n
-#elif defined _FS_
+#endif
+
+#ifdef _FS_
 #define INTERP(n) in n
 #endif
 
@@ -29,19 +31,17 @@ layout(std140) uniform local_params
 
 #ifdef _VS_
 
-in vertex_attr
-{
-	vec3 position;
-	vec3 normal;
-	vec4 color;
-} in_vertex;
+layout(location=0) in vec3 position;
+layout(location=1) in vec3 normal;
+layout(location=2) in vec4 color;
 
 void main()
 {
-	world_position = local.model_transform * vec4(in_vertex.position, 1.0); 
-	gl_Position = global.projection * global.view_transform * world_position;
-	world_normal = (local.normal_transform * vec4(in_vertex.normal, 0.0)).xyz;
-	vertex_color = in_vertex.color;
+	vec4 local_to_world = local.model_transform * vec4(position, 1.0);
+	gl_Position = global.projection * global.view_transform * local_to_world;
+	world_normal = (local.normal_transform * vec4(normal, 0.0)).xyz;
+	world_position = local_to_world.xyz; 
+	vertex_color = color;
 }
 
 #endif
@@ -57,7 +57,7 @@ void main()
 
 #ifdef _FS_
 
-out vec4 out_color0;
+layout(location=0) out vec4 out_color0;
 
 void main()
 {
