@@ -142,14 +142,37 @@ int main(int argc, const char * argv[])
         if (InitializeProcess())
         {
             std::string result;
+            TProgram program;
             TShader vert(EShLangVertex);
+            TShader frag(EShLangFragment);
             TShader::ForbidInclude includer;
             vert.setEntryPoint("main");
             vert.setPreamble("#define _VS_\n");
             vert.setStringsWithLengths(&shaderData, &shaderSize, 1);
-            if (!vert.preprocess(&defaults, 450, ECoreProfile, true, true, EShMsgDefault, &result, includer))
+            if (!vert.preprocess(&defaults, 450, ECoreProfile, false, true, EShMsgDefault, &result, includer))
             {
                 printf("%s\n", vert.getInfoLog());
+            }
+            else
+            {
+                printf("%s\n", result.c_str());
+            }
+            frag.setEntryPoint("main");
+            frag.setPreamble("#define _FS_\n");
+            frag.setStringsWithLengths(&shaderData, &shaderSize, 1);
+            if (!frag.preprocess(&defaults, 450, ECoreProfile, false, true, EShMsgDefault, &result, includer))
+            {
+                printf("%s\n", frag.getInfoLog());
+            }
+            else
+            {
+                printf("%s\n", result.c_str());
+            }
+            program.addShader(&vert);
+            program.addShader(&frag);
+            if (!program.link(EShMsgDefault))
+            {
+                printf("%s\n", program.getInfoLog());
             }
             FinalizeProcess();
         }

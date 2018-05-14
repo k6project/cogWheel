@@ -40,7 +40,7 @@ void main()
 {
 	world_position = local.model_transform * vec4(in_vertex.position, 1.0); 
 	gl_Position = global.projection * global.view_transform * world_position;
-	world_normal = (local.normal_transform * vec4(in_vertex.normal, 1.0)).xyz;
+	world_normal = (local.normal_transform * vec4(in_vertex.normal, 0.0)).xyz;
 	vertex_color = in_vertex.color;
 }
 
@@ -56,12 +56,6 @@ void main()
 #endif
 
 #ifdef _FS_
-
-in vertex_interp
-{
-	vec3 world_position;
-	vec4 color;
-} in_vertex;
 
 out vec4 out_color0;
 
