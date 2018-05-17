@@ -1,67 +1,61 @@
-#ifdef _VS_
-#define INTERP(n) out n
-#endif
+/******************************************************************************/
 
-#ifdef _FS_
-#define INTERP(n) in n
-#endif
-
-#ifndef _CS_
-
-INTERP(interpolated)
+layout(std140) uniform globalParams
 {
-	vec3 world_position;
-	vec3 world_normal;
-	vec4 vertex_color;
+    mat4 projection;
+    mat4 viewTransform;
+}
+
+layout(std140) uniform localParams
+{
+    mat4 modelTransform;
+    mat4 normalTransform;
+}
+
+/******************************************************************************/
+
+#ifdef _VS_
+
+out stageOut
+{
+    vec3 worldPposition;
+    vec3 worldNormal;
+    vec4 vertexColor;
 };
-
-#endif
-
-layout(std140) uniform global_params
-{
-	mat4 projection;
-	mat4 view_transform;
-} global;
-
-layout(std140) uniform local_params
-{
-	mat4 model_transform;
-	mat4 normal_transform;
-} local;
-
-#ifdef _VS_
 
 layout(location=0) in vec3 position;
 layout(location=1) in vec3 normal;
 layout(location=2) in vec4 color;
 
-void main()
+void vsMain()
 {
-	vec4 local_to_world = local.model_transform * vec4(position, 1.0);
-	gl_Position = global.projection * global.view_transform * local_to_world;
-	world_normal = (local.normal_transform * vec4(normal, 0.0)).xyz;
-	world_position = local_to_world.xyz; 
-	vertex_color = color;
+    vec4 localToWorld = modelTransform * vec4(position, 1.0);
+    gl_Position = projection * viewTransform * localToWorld;
+    worldNormal = (normalTransform * vec4(normal, 0.0)).xyz;
+    worldPosition = localToWorld.xyz; 
+    vertexColor = color;
 }
 
 #endif
 
-#ifdef _CS_
+/******************************************************************************/
 
-void main()
+#ifdef _PS_
+
+in stageIn
 {
-	// Compute shader code
+    vec3 worldPposition;
+    vec3 worldNormal;
+    vec4 vertexColor;
+};
+
+layout(location=0) out vec4 outColor0;
+
+void psMain()
+{
+    outColor0 = vertexColor;
 }
 
 #endif
 
-#ifdef _FS_
-
-layout(location=0) out vec4 out_color0;
-
-void main()
-{
-	out_color0 = vertex_color;
-}
-
-#endif
+/******************************************************************************/
