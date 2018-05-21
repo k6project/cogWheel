@@ -91,3 +91,69 @@ void memStackDestroy(memStackAlloc_t** outStack)
         *outStack = NULL;
     }
 }
+
+struct memObjPool_t
+{
+    size_t* chain;
+    char* memory;
+    size_t stride;
+    size_t freeHead;
+    size_t freeTail;
+    size_t count;
+} ALIGNED(MEM_ALIGN_DEFAULT);
+
+void memObjPoolInit(memObjPool_t** outPool, size_t objSize, size_t count)
+{
+    assert(count < SIZE_MAX);
+    size_t stride = (objSize + ALIGN_MASK) & (~ALIGN_MASK);
+    size_t chainSize = count * sizeof(size_t);
+    size_t totalSize = stride * count;
+    char* tmp = (char*)malloc(sizeof(memObjPool_t) + totalSize + chainSize);
+    memObjPool_t* pool = (memObjPool_t*)tmp;
+    pool->memory = tmp + sizeof(memObjPool_t);
+    pool->chain = (size_t*)(pool->memory + totalSize);
+    for (size_t i = 0; i < count;)
+    {
+        size_t pos = i;
+        pool->chain[pos] = ++i;
+    }
+    pool->freeHead = 0;
+    pool->freeTail = count - 1;
+    pool->stride = stride;
+    pool->count = count;
+}
+
+void* memObjPoolGet(memObjPool_t* pool)
+{
+    void* result = NULL;
+    if (pool->freeHead != pool->count)
+    {
+        size_t idx = pool->freeHead;
+        void* tmp = pool->memory + idx * pool->stride;
+        pool->freeHead = pool->chain[idx];
+        pool->chain[idx] = SIZE_MAX;
+        result = tmp;
+    }
+    return result;
+}
+
+void memObjPoolPut(memObjPool_t* pool, void* obj)
+{
+    char* tmp = (char*)obj;
+    assert(tmp && tmp >= pool->memory && tmp < (char*)pool->chain);
+    size_t offset = tmp - pool->memory;
+    assert(offset % pool->stride == 0);
+    size_t idx = offset / pool->stride;
+    assert(pool->chain[idx] == SIZE_MAX);
+}
+
+void memObjPoolDestroy(memObjPool_t** outPool)
+{
+    assert(outPool);
+    memObjPool_t* pool = *outPool;
+    if (pool)
+    {
+        free(pool);
+        *outPool = NULL;
+    }
+}

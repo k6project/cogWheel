@@ -224,6 +224,7 @@ void gfxDestroyTexture(gfxContext_t* gfx, gfxTexture_t* texture)
 VkResult gfxCreateDevice(gfxContext_t* gfx, GLFWwindow* window)
 {
     memStackInit(&gfx->memory, GFX_LINEAR_ALLOC_CAPACITY);
+    memObjPoolInit(&gfx->texturePool, sizeof(gfxTexture_t), 16);
 	size_t imbBytes = GFX_DEFAULT_NUM_BUFFERS * sizeof(gfxTexture_t);
     size_t cmbBytes = GFX_DEFAULT_NUM_BUFFERS * sizeof(VkCommandBuffer);
     size_t staticBytes = imbBytes + cmbBytes;
@@ -300,6 +301,7 @@ void gfxDestroyDevice(gfxContext_t* gfx)
 	vkDestroySwapchainKHR(gfx->device, gfx->swapChain, NULL);
 	vkDestroyDevice(gfx->device, NULL);
 	vklDestroySurface(gfx->surface);
+    memObjPoolDestroy(&gfx->texturePool);
     memStackDestroy(&gfx->memory);
 	gfx->surface = NULL;
 	gfx->device = NULL;

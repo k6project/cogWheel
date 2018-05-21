@@ -1,16 +1,16 @@
 /******************************************************************************/
 
-layout(std140) uniform globalParams
+layout(std140,set=0,binding=0) uniform globalParams
 {
     mat4 projection;
     mat4 viewTransform;
-}
+};
 
-layout(std140) uniform localParams
+layout(std140,set=0,binding=1) uniform localParams
 {
     mat4 modelTransform;
     mat4 normalTransform;
-}
+};
 
 /******************************************************************************/
 
@@ -18,7 +18,7 @@ layout(std140) uniform localParams
 
 out stageOut
 {
-    vec3 worldPposition;
+    vec3 worldPosition;
     vec3 worldNormal;
     vec4 vertexColor;
 };
@@ -44,7 +44,7 @@ void vsMain()
 
 in stageIn
 {
-    vec3 worldPposition;
+    vec3 worldPosition;
     vec3 worldNormal;
     vec4 vertexColor;
 };

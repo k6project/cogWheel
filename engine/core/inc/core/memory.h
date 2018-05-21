@@ -4,7 +4,7 @@
 
 #define MEM_ALIGN_DEFAULT 16
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #define ALIGNED(n) __declspec( align( n ) )
 #else
 #define ALIGNED(n) __attribute__((aligned( n )))
@@ -23,3 +23,13 @@ void memStackFree(memStackAlloc_t* stack, void* mem);
 
 void memStackDestroy(memStackAlloc_t** outStack);
 
+struct memObjPool_t;
+typedef struct memObjPool_t memObjPool_t;
+
+void memObjPoolInit(memObjPool_t** outPool, size_t objSize, size_t count);
+
+void* memObjPoolGet(memObjPool_t* pool);
+
+void memObjPoolPut(memObjPool_t* pool, void* obj);
+
+void memObjPoolDestroy(memObjPool_t** outPool);

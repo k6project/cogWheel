@@ -54,6 +54,7 @@ typedef struct gfxTexture_t
 typedef struct gfxContext_t
 {
     memStackAlloc_t* memory;
+    memObjPool_t* texturePool;
 	VkDevice device;
 	VkSurfaceKHR surface;
 	VkExtent2D surfaceSize;
