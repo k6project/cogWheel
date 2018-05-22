@@ -1,5 +1,10 @@
 #pragma once
 
+#ifdef _cplusplus
+extern "C"
+{
+#endif
+
 #include <stddef.h>
 
 #define MEM_ALIGN_DEFAULT 16
@@ -33,3 +38,7 @@ void* memObjPoolGet(memObjPool_t* pool);
 void memObjPoolPut(memObjPool_t* pool, void* obj);
 
 void memObjPoolDestroy(memObjPool_t** outPool);
+
+#ifdef _cplusplus
+}
+#endif
