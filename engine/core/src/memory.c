@@ -121,6 +121,7 @@ void memObjPoolInit(memObjPool_t** outPool, size_t objSize, size_t count)
     pool->freeTail = count - 1;
     pool->stride = stride;
     pool->count = count;
+    *outPool = pool;
 }
 
 void* memObjPoolGet(memObjPool_t* pool)
@@ -145,6 +146,16 @@ void memObjPoolPut(memObjPool_t* pool, void* obj)
     assert(offset % pool->stride == 0);
     size_t idx = offset / pool->stride;
     assert(pool->chain[idx] == SIZE_MAX);
+    pool->chain[idx] = pool->count;
+    if (pool->freeHead == pool->count)
+    {
+        pool->freeHead = idx;
+    }
+    else
+    {
+        pool->chain[pool->freeTail] = idx;
+    }
+    pool->freeTail = idx;
 }
 
 void memObjPoolDestroy(memObjPool_t** outPool)

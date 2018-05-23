@@ -10,6 +10,11 @@
 #define GFX_STAGING_BUFFER_SIZE (16u << 20)
 #define GFX_LINEAR_ALLOC_CAPACITY (4u << 20)
 
+typedef struct
+{
+    gfxTexture_t descr;
+} gfxTexture_t_;
+
 static VkResult gfxDeviceSetupCallback(void* context,
     vklDeviceSetup_t* conf,
     const vklDeviceInfo_t* devices,
@@ -133,6 +138,11 @@ void gfxDestroyBuffer(gfxContext_t* gfx, gfxBuffer_t* buffer)
 	}
 }
 
+gfxTexture_t* gfxAllocTexture(gfxContext_t* gfx)
+{
+    return (gfxTexture_t*)memObjPoolGet(gfx->texturePool);
+}
+
 VkResult gfxCreateTexture(gfxContext_t* gfx, gfxTexture_t* texture)
 {
     assert(!texture->handle);
@@ -219,18 +229,19 @@ void gfxDestroyTexture(gfxContext_t* gfx, gfxTexture_t* texture)
     texture->memory = VK_NULL_HANDLE;
     texture->handle = VK_NULL_HANDLE;
     texture->image = VK_NULL_HANDLE;
+    memObjPoolPut(gfx->texturePool, texture);
 }
 
 VkResult gfxCreateDevice(gfxContext_t* gfx, GLFWwindow* window)
 {
     memStackInit(&gfx->memory, GFX_LINEAR_ALLOC_CAPACITY);
-    memObjPoolInit(&gfx->texturePool, sizeof(gfxTexture_t), 16);
-	size_t imbBytes = GFX_DEFAULT_NUM_BUFFERS * sizeof(gfxTexture_t);
+    memObjPoolInit(&gfx->texturePool, sizeof(gfxTexture_t_), 16);
+	size_t imbBytes = GFX_DEFAULT_NUM_BUFFERS * sizeof(gfxTexture_t*);
     size_t cmbBytes = GFX_DEFAULT_NUM_BUFFERS * sizeof(VkCommandBuffer);
     size_t staticBytes = imbBytes + cmbBytes;
     uint8_t* staticMem = (uint8_t*)memStackAlloc(gfx->memory, staticBytes);
     memset(staticMem, 0, staticBytes);
-	gfx->imgBuffers = (gfxTexture_t*)staticMem;
+	gfx->imgBuffers = (gfxTexture_t**)staticMem;
     gfx->cmdBuffers = (VkCommandBuffer*)(staticMem + imbBytes);
 	gfx->surface = vklCreateSurface(glfwGetNativeView(window));
 	gfx->device = vklCreateDevice(&gfxDeviceSetupCallback, gfx);
@@ -254,12 +265,14 @@ VkResult gfxCreateDevice(gfxContext_t* gfx, GLFWwindow* window)
 	VKCHECK(vkGetSwapchainImagesKHR(gfx->device, gfx->swapChain, &gfx->numBuffers, images));
 	for (uint32_t i = 0; i < gfx->numBuffers; i++)
 	{
-		gfx->imgBuffers[i].width = gfx->surfaceSize.width;
-		gfx->imgBuffers[i].height = gfx->surfaceSize.height;
-		gfx->imgBuffers[i].format = gfx->surfFormat.format;
-		gfx->imgBuffers[i].renderTarget = true;
-		gfx->imgBuffers[i].image = images[i];
-		VKCHECK(gfxCreateTexture(gfx, &gfx->imgBuffers[i]));
+        gfxTexture_t_* tex = (gfxTexture_t_*)memObjPoolGet(gfx->texturePool);
+        tex->descr.width = gfx->surfaceSize.width;
+        tex->descr.height = gfx->surfaceSize.height;
+        tex->descr.format = gfx->surfFormat.format;
+        tex->descr.renderTarget = true;
+        tex->descr.image = images[i];
+        VKCHECK(gfxCreateTexture(gfx, &tex->descr));
+        gfx->imgBuffers[i] = &tex->descr;
 	}
 	vkGetDeviceQueue(gfx->device, gfx->queueFamily, 0, &gfx->cmdQueue);
 	VkCommandPoolCreateInfo poolCreateInfo;
@@ -293,7 +306,7 @@ void gfxDestroyDevice(gfxContext_t* gfx)
 	gfxDestroyBuffer(gfx, &gfx->stagingBuffer);
 	for (uint32_t i = 0; i < gfx->numBuffers; i++)
 	{
-		gfxDestroyTexture(gfx, &gfx->imgBuffers[i]);
+		gfxDestroyTexture(gfx, gfx->imgBuffers[i]);
 	}
 	vkDestroySemaphore(gfx->device, gfx->canSwap, NULL);
 	vkDestroySemaphore(gfx->device, gfx->canDraw, NULL);
@@ -459,7 +472,7 @@ void gfxBeginFrame(gfxContext_t* gfx)
 {
     VKCHECK(vkQueueWaitIdle(gfx->cmdQueue));
 	VKCHECK(vkAcquireNextImageKHR(gfx->device, gfx->swapChain, UINT64_MAX, gfx->canDraw, VK_NULL_HANDLE, &gfx->bufferIdx));
-    gfx->backBuffer = &gfx->imgBuffers[gfx->bufferIdx];
+    gfx->backBuffer = gfx->imgBuffers[gfx->bufferIdx];
     gfx->cmdBuffer = gfx->cmdBuffers[gfx->bufferIdx];
     VkCommandBufferBeginInfo beginInfo;
     VKINIT(beginInfo, VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO);

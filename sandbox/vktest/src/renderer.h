@@ -65,7 +65,7 @@ typedef struct gfxContext_t
 	uint32_t queueFamily;
 	uint32_t numBuffers;
 	uint32_t bufferIdx;
-	gfxTexture_t* imgBuffers;
+	gfxTexture_t** imgBuffers;
 	gfxTexture_t* backBuffer;
 	VkQueue cmdQueue;
 	VkCommandPool cmdPool;
@@ -79,9 +79,7 @@ typedef struct gfxContext_t
 
 struct GLFWwindow;
 
-/* typedef struct gfxRenderState_t */
-/* gfxCreateRenderState */
-/* gfxDestroyRenderState */
+gfxTexture_t* gfxAllocTexture(gfxContext_t* gfx);
 
 VkResult gfxCreateBuffer(gfxContext_t* gfx, gfxBuffer_t* buffer);
 
