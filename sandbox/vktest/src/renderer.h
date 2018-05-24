@@ -79,11 +79,11 @@ typedef struct gfxContext_t
 
 struct GLFWwindow;
 
-gfxTexture_t* gfxAllocTexture(gfxContext_t* gfx);
-
 VkResult gfxCreateBuffer(gfxContext_t* gfx, gfxBuffer_t* buffer);
 
 void gfxDestroyBuffer(gfxContext_t* gfx, gfxBuffer_t* buffer);
+
+gfxTexture_t* gfxAllocTexture(gfxContext_t* gfx);
 
 VkResult gfxCreateTexture(gfxContext_t* gfx, gfxTexture_t* texture);
 
