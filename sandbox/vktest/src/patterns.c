@@ -18,7 +18,7 @@ static int lcd(uint32_t a, uint32_t b)
     return max;
 }
 
-void checkerboard(struct gfxTexture_t* texture)
+void checkerboard(gfxTexture_t texture)
 {
     size_t step = lcd(texture->width, texture->height);
     size_t rows = texture->height / step;
@@ -100,7 +100,7 @@ static float ngVoronoiTileProc(ngVoronoi_t* gen, vec2i_t point, vec2u_t block)
     return result;
 }
 
-void ngMakeVoronoi(ngVoronoi_t* gen, gfxTexture_t* texture)
+void ngMakeVoronoi(ngVoronoi_t* gen, gfxTexture_t texture)
 {
 	char* mem = (char*)texture->imageData;
 	size_t dataSize = texture->width * texture->height;

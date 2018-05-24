@@ -28,28 +28,26 @@ int main(int argc, const char * argv[])
         GLFWwindow* window = glfwCreateWindow(width, height, PROGRAM_NAME, monitor, NULL);
         if (window)
         {
-			gfxContext_t gfx;
-            memset(&gfx, 0, sizeof(gfx));
-            assert(gfxCreateDevice(&gfx, window) == VK_SUCCESS);
-            gfxTexture_t* tex = gfxAllocTexture(&gfx);
-            memset(tex, 0, sizeof(gfxTexture_t));
+			gfxDevice_t gfx = gfxAllocDevice();
+            assert(gfxCreateDevice(gfx, window) == VK_SUCCESS);
+            gfxTexture_t tex = gfxAllocTexture(gfx);
 			tex->width = width;
 			tex->height = height;
             tex->renderTarget = true;
-            //checkerboard(&tex);
+            /*checkerboard(&tex);*/
             voronoiNoise(tex, 6, 6);
-            assert(gfxCreateTexture(&gfx, tex) == VK_SUCCESS);
+            assert(gfxCreateTexture(gfx, tex) == VK_SUCCESS);
             while (!glfwWindowShouldClose(window))
             {
-                gfxBeginFrame(&gfx);
-                gfxUpdateResources(&gfx, tex, 1, NULL, 0);
-                gfxClearRenderTarget(&gfx, NULL, (vec4f_t){0.f, 0.2f, 1.f, 1.f});
-				gfxBlitTexture(&gfx, NULL, tex);
-                gfxEndFrame(&gfx);
+                gfxBeginFrame(gfx);
+                gfxUpdateResources(gfx, &tex, 1, NULL, 0);
+                gfxClearRenderTarget(gfx, NULL, (vec4f_t){0.f, 0.2f, 1.f, 1.f});
+				gfxBlitTexture(gfx, NULL, tex);
+                gfxEndFrame(gfx);
                 glfwPollEvents();
             }
-			gfxDestroyTexture(&gfx, tex);
-            gfxDestroyDevice(&gfx);
+			gfxDestroyTexture(gfx, tex);
+            gfxDestroyDevice(gfx);
         }
         glfwDestroyWindow(window);
         glfwTerminate();

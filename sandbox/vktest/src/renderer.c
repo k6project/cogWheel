@@ -12,8 +12,34 @@
 
 typedef struct
 {
-    gfxTexture_t descr;
+    struct gfxTexture_t descr;
 } gfxTexture_t_;
+
+struct gfxDevice_t
+{
+	memStackAlloc_t* memory;
+	memObjPool_t* texturePool;
+	VkDevice device;
+	VkSurfaceKHR surface;
+	VkExtent2D surfaceSize;
+	VkSurfaceTransformFlagBitsKHR transform;
+	VkSurfaceFormatKHR surfFormat;
+	VkPresentModeKHR presentMode;
+	VkPhysicalDeviceMemoryProperties memProps;
+	uint32_t queueFamily;
+	uint32_t numBuffers;
+	uint32_t bufferIdx;
+	gfxTexture_t* imgBuffers;
+	gfxTexture_t backBuffer;
+	VkQueue cmdQueue;
+	VkCommandPool cmdPool;
+	gfxBuffer_t stagingBuffer;
+	VkSwapchainKHR swapChain;
+	VkSemaphore canDraw;
+	VkSemaphore canSwap;
+	VkCommandBuffer* cmdBuffers;
+	VkCommandBuffer cmdBuffer;
+};
 
 static VkResult gfxDeviceSetupCallback(void* context,
     vklDeviceSetup_t* conf,
@@ -32,7 +58,7 @@ static VkResult gfxDeviceSetupCallback(void* context,
         for (uint32_t j = 0; j < info->numFamilies; j++)
         {
             VkBool32 canPresent = VK_FALSE;
-            gfxContext_t* gfx = (gfxContext_t*)context;
+            gfxDevice_t gfx = (gfxDevice_t)context;
             VkSurfaceKHR surface = gfx->surface;
             VkQueueFamilyProperties* props = &info->families[j];
             vkGetPhysicalDeviceSurfaceSupportKHR(info->handle, j, surface, &canPresent);
@@ -100,7 +126,7 @@ static VkResult gfxDeviceSetupCallback(void* context,
     return VK_NOT_READY;
 }
 
-VkResult gfxCreateBuffer(gfxContext_t* gfx, gfxBuffer_t* buffer)
+VkResult gfxCreateBuffer(gfxDevice_t gfx, gfxBuffer_t* buffer)
 {
 	VkBufferCreateInfo createInfo;
 	memset(&createInfo, 0, sizeof(createInfo));
@@ -128,7 +154,7 @@ VkResult gfxCreateBuffer(gfxContext_t* gfx, gfxBuffer_t* buffer)
 	return VK_NOT_READY;
 }
 
-void gfxDestroyBuffer(gfxContext_t* gfx, gfxBuffer_t* buffer)
+void gfxDestroyBuffer(gfxDevice_t gfx, gfxBuffer_t* buffer)
 {
 	vkDestroyBuffer(gfx->device, buffer->handle, NULL);
 	if (buffer->ownGpuMem)
@@ -138,12 +164,14 @@ void gfxDestroyBuffer(gfxContext_t* gfx, gfxBuffer_t* buffer)
 	}
 }
 
-gfxTexture_t* gfxAllocTexture(gfxContext_t* gfx)
+gfxTexture_t gfxAllocTexture(gfxDevice_t gfx)
 {
-    return (gfxTexture_t*)memObjPoolGet(gfx->texturePool);
+	void* tex = memObjPoolGet(gfx->texturePool);
+	memset(tex, 0, sizeof(gfxTexture_t_));
+    return (gfxTexture_t)tex;
 }
 
-VkResult gfxCreateTexture(gfxContext_t* gfx, gfxTexture_t* texture)
+VkResult gfxCreateTexture(gfxDevice_t gfx, gfxTexture_t texture)
 {
     assert(!texture->handle);
     assert(texture->width >= 1);
@@ -216,7 +244,7 @@ VkResult gfxCreateTexture(gfxContext_t* gfx, gfxTexture_t* texture)
     return vkCreateImageView(gfx->device, &viewInfo, NULL, &texture->handle);
 }
 
-void gfxDestroyTexture(gfxContext_t* gfx, gfxTexture_t* texture)
+void gfxDestroyTexture(gfxDevice_t gfx, gfxTexture_t texture)
 {
 	VKCHECK(vkDeviceWaitIdle(gfx->device));
     vkDestroyImageView(gfx->device, texture->handle, NULL);
@@ -232,8 +260,15 @@ void gfxDestroyTexture(gfxContext_t* gfx, gfxTexture_t* texture)
     memObjPoolPut(gfx->texturePool, texture);
 }
 
-VkResult gfxCreateDevice(gfxContext_t* gfx, GLFWwindow* window)
+gfxDevice_t gfxAllocDevice()
 {
+	static struct gfxDevice_t gfx;
+	return &gfx;
+}
+
+VkResult gfxCreateDevice(gfxDevice_t gfx, struct GLFWwindow* window)
+{
+	assert(gfx);
     memStackInit(&gfx->memory, GFX_LINEAR_ALLOC_CAPACITY);
     memObjPoolInit(&gfx->texturePool, sizeof(gfxTexture_t_), 16);
 	size_t imbBytes = GFX_DEFAULT_NUM_BUFFERS * sizeof(gfxTexture_t*);
@@ -241,7 +276,7 @@ VkResult gfxCreateDevice(gfxContext_t* gfx, GLFWwindow* window)
     size_t staticBytes = imbBytes + cmbBytes;
     uint8_t* staticMem = (uint8_t*)memStackAlloc(gfx->memory, staticBytes);
     memset(staticMem, 0, staticBytes);
-	gfx->imgBuffers = (gfxTexture_t**)staticMem;
+	gfx->imgBuffers = (gfxTexture_t*)staticMem;
     gfx->cmdBuffers = (VkCommandBuffer*)(staticMem + imbBytes);
 	gfx->surface = vklCreateSurface(glfwGetNativeView(window));
 	gfx->device = vklCreateDevice(&gfxDeviceSetupCallback, gfx);
@@ -265,14 +300,14 @@ VkResult gfxCreateDevice(gfxContext_t* gfx, GLFWwindow* window)
 	VKCHECK(vkGetSwapchainImagesKHR(gfx->device, gfx->swapChain, &gfx->numBuffers, images));
 	for (uint32_t i = 0; i < gfx->numBuffers; i++)
 	{
-        gfxTexture_t_* tex = (gfxTexture_t_*)memObjPoolGet(gfx->texturePool);
-        tex->descr.width = gfx->surfaceSize.width;
-        tex->descr.height = gfx->surfaceSize.height;
-        tex->descr.format = gfx->surfFormat.format;
-        tex->descr.renderTarget = true;
-        tex->descr.image = images[i];
-        VKCHECK(gfxCreateTexture(gfx, &tex->descr));
-        gfx->imgBuffers[i] = &tex->descr;
+        gfxTexture_t tex = gfxAllocTexture(gfx);
+        tex->width = gfx->surfaceSize.width;
+        tex->height = gfx->surfaceSize.height;
+        tex->format = gfx->surfFormat.format;
+        tex->renderTarget = true;
+        tex->image = images[i];
+        VKCHECK(gfxCreateTexture(gfx, tex));
+        gfx->imgBuffers[i] = tex;
 	}
 	vkGetDeviceQueue(gfx->device, gfx->queueFamily, 0, &gfx->cmdQueue);
 	VkCommandPoolCreateInfo poolCreateInfo;
@@ -299,7 +334,7 @@ VkResult gfxCreateDevice(gfxContext_t* gfx, GLFWwindow* window)
 		0, &gfx->stagingBuffer.hostPtr);
 }
 
-void gfxDestroyDevice(gfxContext_t* gfx)
+void gfxDestroyDevice(gfxDevice_t gfx)
 {
     VKCHECK(vkDeviceWaitIdle(gfx->device));
     vkUnmapMemory(gfx->device, gfx->stagingBuffer.memory);
@@ -320,7 +355,7 @@ void gfxDestroyDevice(gfxContext_t* gfx)
 	gfx->device = NULL;
 }
 
-void gfxUpdateResources(gfxContext_t* gfx,
+void gfxUpdateResources(gfxDevice_t gfx,
     gfxTexture_t* textures,
     size_t numTextures,
     gfxBuffer_t* buffers,
@@ -336,32 +371,32 @@ void gfxUpdateResources(gfxContext_t* gfx,
     memset(regions, 0, tmpBytes);
     for (size_t i = 0; i < numTextures; i++)
     {
-        if (textures[i].hasPendingData && textures[i].imageDataSize <= availBytes)
+        if (textures[i]->hasPendingData && textures[i]->imageDataSize <= availBytes)
         {
             VkImageMemoryBarrier* barrier = &barriers[numBarriers++];
             VKINIT(*barrier, VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);
-            memcpy(buff, textures[i].imageData, textures[i].imageDataSize);
+            memcpy(buff, textures[i]->imageData, textures[i]->imageDataSize);
             barrier->oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
             barrier->newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-            barrier->image = textures[i].image;
+            barrier->image = textures[i]->image;
             barrier->srcQueueFamilyIndex = gfx->queueFamily;
             barrier->dstQueueFamilyIndex = gfx->queueFamily;
-            barrier->image = textures[i].image;
+            barrier->image = textures[i]->image;
             barrier->subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;/*todo: depth/stencil ???*/
             barrier->subresourceRange.layerCount = 1;
             barrier->subresourceRange.levelCount = 1;
             VkBufferImageCopy* region = &regions[numRegions++];
             region->bufferOffset = buff - ((uint8_t*)gfx->stagingBuffer.hostPtr);
-            region->imageExtent.width = textures[i].width;
-            region->imageExtent.height = textures[i].height;
+            region->imageExtent.width = textures[i]->width;
+            region->imageExtent.height = textures[i]->height;
             region->imageExtent.depth = 1;
             region->imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             region->imageSubresource.layerCount = 1;
-            availBytes -= textures[i].imageDataSize;
-            buff += textures[i].imageDataSize;
-            textures[i].hasPendingData = false;
+            availBytes -= textures[i]->imageDataSize;
+            buff += textures[i]->imageDataSize;
+            textures[i]->hasPendingData = false;
         }
-        else if (textures[i].imageDataSize > availBytes)
+        else if (textures[i]->imageDataSize > availBytes)
         {
             break;
         }
@@ -387,11 +422,11 @@ void gfxUpdateResources(gfxContext_t* gfx,
     memStackFree(gfx->memory, barriers);
 }
 
-void gfxClearRenderTarget(gfxContext_t* gfx,
-    gfxTexture_t* texture,
+void gfxClearRenderTarget(gfxDevice_t gfx,
+    gfxTexture_t texture,
     vec4f_t color)
 {
-    gfxTexture_t* tex = (texture) ? texture : gfx->backBuffer;
+    gfxTexture_t tex = (texture) ? texture : gfx->backBuffer;
     VkImageMemoryBarrier barrier;
     VKINIT(barrier, VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);
 	barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -414,9 +449,9 @@ void gfxClearRenderTarget(gfxContext_t* gfx,
         1, &barrier.subresourceRange);
 }
 
-void gfxBlitTexture(gfxContext_t* gfx,
-    gfxTexture_t* dest,
-    gfxTexture_t* src)
+void gfxBlitTexture(gfxDevice_t gfx,
+    gfxTexture_t dest,
+    gfxTexture_t src)
 {
     src = (src) ? src : gfx->backBuffer;
     dest = (dest) ? dest : gfx->backBuffer;
@@ -468,7 +503,7 @@ void gfxBlitTexture(gfxContext_t* gfx,
 		1, &blit, VK_FILTER_NEAREST);
 }
 
-void gfxBeginFrame(gfxContext_t* gfx)
+void gfxBeginFrame(gfxDevice_t gfx)
 {
     VKCHECK(vkQueueWaitIdle(gfx->cmdQueue));
 	VKCHECK(vkAcquireNextImageKHR(gfx->device, gfx->swapChain, UINT64_MAX, gfx->canDraw, VK_NULL_HANDLE, &gfx->bufferIdx));
@@ -479,7 +514,7 @@ void gfxBeginFrame(gfxContext_t* gfx)
     VKCHECK(vkBeginCommandBuffer(gfx->cmdBuffer, &beginInfo));
 }
 
-void gfxEndFrame(gfxContext_t* gfx)
+void gfxEndFrame(gfxDevice_t gfx)
 {
     VkImageMemoryBarrier barrier;
     VKINIT(barrier, VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);

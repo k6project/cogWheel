@@ -34,79 +34,62 @@ typedef struct gfxBuffer_t
 	bool ownGpuMem : 1;
 } gfxBuffer_t;
 
-typedef struct gfxTexture_t
-{
-    VkImage image;
-    VkImageView handle;
-    VkDeviceMemory memory;
-    uint32_t width        :16;
-    uint32_t height       :16;
-    gfxDataFormat_t format:24;
-    uint32_t numMips      : 4;
-    bool renderTarget     : 1;
-    bool sampledTexture   : 1;
-    bool ownGpuMem        : 1;
-    bool hasPendingData   : 1;
-    void* imageData;
-    size_t imageDataSize;
-} gfxTexture_t;
-
-typedef struct gfxContext_t
-{
-    memStackAlloc_t* memory;
-    memObjPool_t* texturePool;
-	VkDevice device;
-	VkSurfaceKHR surface;
-	VkExtent2D surfaceSize;
-	VkSurfaceTransformFlagBitsKHR transform;
-    VkSurfaceFormatKHR surfFormat;
-	VkPresentModeKHR presentMode;
-	VkPhysicalDeviceMemoryProperties memProps;
-	uint32_t queueFamily;
-	uint32_t numBuffers;
-	uint32_t bufferIdx;
-	gfxTexture_t** imgBuffers;
-	gfxTexture_t* backBuffer;
-	VkQueue cmdQueue;
-	VkCommandPool cmdPool;
-	gfxBuffer_t stagingBuffer;
-	VkSwapchainKHR swapChain;
-	VkSemaphore canDraw;
-	VkSemaphore canSwap;
-    VkCommandBuffer* cmdBuffers;
-    VkCommandBuffer cmdBuffer;
-} gfxContext_t;
-
 struct GLFWwindow;
 
-VkResult gfxCreateBuffer(gfxContext_t* gfx, gfxBuffer_t* buffer);
+struct gfxDevice_t;
+struct gfxShader_t;
 
-void gfxDestroyBuffer(gfxContext_t* gfx, gfxBuffer_t* buffer);
+struct gfxTexture_t
+{
+	VkImage image;
+	VkImageView handle;
+	VkDeviceMemory memory;
+	uint32_t width : 16;
+	uint32_t height : 16;
+	gfxDataFormat_t format : 24;
+	uint32_t numMips : 4;
+	bool renderTarget : 1;
+	bool sampledTexture : 1;
+	bool ownGpuMem : 1;
+	bool hasPendingData : 1;
+	void* imageData;
+	size_t imageDataSize;
+};
 
-gfxTexture_t* gfxAllocTexture(gfxContext_t* gfx);
+typedef struct gfxDevice_t* gfxDevice_t;
+typedef struct gfxShader_t* gfxShader_t;
+typedef struct gfxTexture_t* gfxTexture_t;
 
-VkResult gfxCreateTexture(gfxContext_t* gfx, gfxTexture_t* texture);
+VkResult gfxCreateBuffer(gfxDevice_t gfx, gfxBuffer_t* buffer);
 
-void gfxDestroyTexture(gfxContext_t* gfx, gfxTexture_t* texture);
+void gfxDestroyBuffer(gfxDevice_t gfx, gfxBuffer_t* buffer);
 
-VkResult gfxCreateDevice(gfxContext_t* gfx, struct GLFWwindow* window);
+gfxTexture_t gfxAllocTexture(gfxDevice_t gfx);
 
-void gfxDestroyDevice(gfxContext_t* gfx);
+VkResult gfxCreateTexture(gfxDevice_t gfx, gfxTexture_t texture);
 
-void gfxUpdateResources(gfxContext_t* gfx,
+void gfxDestroyTexture(gfxDevice_t gfx, gfxTexture_t texture);
+
+gfxDevice_t gfxAllocDevice();
+
+VkResult gfxCreateDevice(gfxDevice_t gfx, struct GLFWwindow* window);
+
+void gfxDestroyDevice(gfxDevice_t gfx);
+
+void gfxUpdateResources(gfxDevice_t gfx,
     gfxTexture_t* textures,
     size_t numTextures,
     gfxBuffer_t* buffers,
     size_t numBuffers);
 
-void gfxClearRenderTarget(gfxContext_t* gfx,
-    gfxTexture_t* texture,
+void gfxClearRenderTarget(gfxDevice_t gfx,
+    gfxTexture_t texture,
     vec4f_t color);
 
-void gfxBlitTexture(gfxContext_t* gfx,
-    gfxTexture_t* dest,
-    gfxTexture_t* src);
+void gfxBlitTexture(gfxDevice_t gfx,
+    gfxTexture_t dest,
+    gfxTexture_t src);
 
-void gfxBeginFrame(gfxContext_t* gfx);
+void gfxBeginFrame(gfxDevice_t gfx);
 
-void gfxEndFrame(gfxContext_t* gfx);
+void gfxEndFrame(gfxDevice_t gfx);
