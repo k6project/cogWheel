@@ -11,15 +11,23 @@
 #define GFX_STAGING_BUFFER_SIZE (16u << 20)
 #define GFX_LINEAR_ALLOC_CAPACITY (4u << 20)
 
-typedef struct
+/* Macro to access descriptor */
+#define DESCR(t) (t->descr)
+
+/* Macro to compare two pointers */
+#define SAME_ADDR(a,b) (((uintptr_t)a)==((uintptr_t)b))
+
+typedef struct gfxBuffer_t_
 {
     struct gfxBuffer_t descr;
 } gfxBuffer_t_;
 
-typedef struct
+typedef struct gfxTexture_t_
 {
     struct gfxTexture_t descr;
 } gfxTexture_t_;
+
+typedef struct gfxTexture_t_* gfxTextureImpl_t;
 
 struct gfxDevice_t
 {
@@ -181,9 +189,11 @@ void gfxDestroyBuffer(gfxDevice_t gfx, gfxBuffer_t buffer)
 
 gfxTexture_t gfxAllocTexture(gfxDevice_t gfx)
 {
-	void* tex = memObjPoolGet(gfx->texturePool);
+	gfxTexture_t_* tex = (gfxTexture_t_*)memObjPoolGet(gfx->texturePool);
 	memset(tex, 0, sizeof(gfxTexture_t_));
-    return (gfxTexture_t)tex;
+	gfxTexture_t result = &tex->descr;
+	assert(SAME_ADDR(tex, result));
+    return result;
 }
 
 VkResult gfxCreateTexture(gfxDevice_t gfx, gfxTexture_t texture)

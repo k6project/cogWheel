@@ -51,6 +51,11 @@ void vklInitialize(const char* appArg)
 {
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
     vkCtx_.dll = LoadLibrary("vulkan-1.dll");
+	/*
+	char path[256];
+	GetModuleFileNameA(vkCtx_.dll, path, 256);
+	OutputDebugStringA(path);
+	*/
 #else
     const char* term = strrchr(appArg, '/');
     static const char libName[] = "libvulkan.dylib";
@@ -81,6 +86,7 @@ void vklInitialize(const char* appArg)
     assert(vkGetInstanceProcAddr);
 #define VULKAN_API_GOBAL(proc) \
     assert(vk ## proc = ( PFN_vk ## proc )vkGetInstanceProcAddr( NULL, "vk" #proc ));
+    /*if (!vk ## proc ) {OutputDebugStringA("Failed to find vk" #proc "\n" ); DebugBreak();}*/
 #include "vkproc.inl.h"
     result = vkEnumerateInstanceLayerProperties(&vkCtx_.numLayers, NULL);
     assert(result == VK_SUCCESS);

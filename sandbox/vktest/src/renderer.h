@@ -51,8 +51,8 @@ struct gfxTexture_t
 	bool sampledTexture : 1;
 	bool ownGpuMem : 1;
 	bool hasPendingData : 1;
-	void* imageData;
 	size_t imageDataSize;
+	void* imageData;
 };
 
 typedef struct gfxDevice_t* gfxDevice_t;

@@ -1,5 +1,10 @@
 #pragma once
 
+#ifdef _cplusplus
+extern "C"
+{
+#endif
+
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
 
@@ -58,3 +63,7 @@ void vklShutdown();
 
 #define VKCHECK(call) do { VkResult VKRESULT = call ; assert(VKRESULT==VK_SUCCESS);} while (0)
 #define VKINIT(obj,tname) do { memset(&obj, 0, sizeof(obj));(obj).sType = tname; } while (0)
+
+#ifdef _cplusplus
+}
+#endif
