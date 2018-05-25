@@ -3,12 +3,18 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#include <core/memory.h>
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
 
 #define GFX_DEFAULT_NUM_BUFFERS 3
 #define GFX_STAGING_BUFFER_SIZE (16u << 20)
 #define GFX_LINEAR_ALLOC_CAPACITY (4u << 20)
+
+typedef struct
+{
+    struct gfxBuffer_t descr;
+} gfxBuffer_t_;
 
 typedef struct
 {
@@ -19,6 +25,7 @@ struct gfxDevice_t
 {
 	memStackAlloc_t* memory;
 	memObjPool_t* texturePool;
+    memObjPool_t* bufferPool;
 	VkDevice device;
 	VkSurfaceKHR surface;
 	VkExtent2D surfaceSize;
@@ -126,7 +133,14 @@ static VkResult gfxDeviceSetupCallback(void* context,
     return VK_NOT_READY;
 }
 
-VkResult gfxCreateBuffer(gfxDevice_t gfx, gfxBuffer_t* buffer)
+gfxBuffer_t gfxAllocBuffer(gfxDevice_t gfx)
+{
+    void* tmp = memObjPoolGet(gfx->bufferPool);
+    memset(tmp, 0, sizeof(gfxBuffer_t_));
+    return (gfxBuffer_t)tmp;
+}
+
+VkResult gfxCreateBuffer(gfxDevice_t gfx, gfxBuffer_t buffer)
 {
 	VkBufferCreateInfo createInfo;
 	memset(&createInfo, 0, sizeof(createInfo));
@@ -154,7 +168,7 @@ VkResult gfxCreateBuffer(gfxDevice_t gfx, gfxBuffer_t* buffer)
 	return VK_NOT_READY;
 }
 
-void gfxDestroyBuffer(gfxDevice_t gfx, gfxBuffer_t* buffer)
+void gfxDestroyBuffer(gfxDevice_t gfx, gfxBuffer_t buffer)
 {
 	vkDestroyBuffer(gfx->device, buffer->handle, NULL);
 	if (buffer->ownGpuMem)
@@ -162,6 +176,7 @@ void gfxDestroyBuffer(gfxDevice_t gfx, gfxBuffer_t* buffer)
 		vkFreeMemory(gfx->device, buffer->memory, NULL);
 		buffer->ownGpuMem = false;
 	}
+    memObjPoolPut(gfx->bufferPool, buffer);
 }
 
 gfxTexture_t gfxAllocTexture(gfxDevice_t gfx)
@@ -271,6 +286,7 @@ VkResult gfxCreateDevice(gfxDevice_t gfx, struct GLFWwindow* window)
 	assert(gfx);
     memStackInit(&gfx->memory, GFX_LINEAR_ALLOC_CAPACITY);
     memObjPoolInit(&gfx->texturePool, sizeof(gfxTexture_t_), 16);
+    memObjPoolInit(&gfx->bufferPool, sizeof(gfxBuffer_t_), 16);
 	size_t imbBytes = GFX_DEFAULT_NUM_BUFFERS * sizeof(gfxTexture_t*);
     size_t cmbBytes = GFX_DEFAULT_NUM_BUFFERS * sizeof(VkCommandBuffer);
     size_t staticBytes = imbBytes + cmbBytes;
@@ -325,20 +341,21 @@ VkResult gfxCreateDevice(gfxDevice_t gfx, struct GLFWwindow* window)
     cbAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     cbAllocInfo.commandBufferCount = gfx->numBuffers;
     VKCHECK(vkAllocateCommandBuffers(gfx->device, &cbAllocInfo, gfx->cmdBuffers));
-	gfx->stagingBuffer.upload = true;
-	gfx->stagingBuffer.size = GFX_STAGING_BUFFER_SIZE;
-	assert(gfxCreateBuffer(gfx, &gfx->stagingBuffer) == VK_SUCCESS);
-	return vkMapMemory(gfx->device,
-		gfx->stagingBuffer.memory,
-		0, gfx->stagingBuffer.size,
-		0, &gfx->stagingBuffer.hostPtr);
+    gfx->stagingBuffer = gfxAllocBuffer(gfx);
+	gfx->stagingBuffer->upload = true;
+	gfx->stagingBuffer->size = GFX_STAGING_BUFFER_SIZE;
+	assert(gfxCreateBuffer(gfx, gfx->stagingBuffer) == VK_SUCCESS);
+    return vkMapMemory(gfx->device,
+		gfx->stagingBuffer->memory,
+		0, gfx->stagingBuffer->size,
+		0, &gfx->stagingBuffer->hostPtr);
 }
 
 void gfxDestroyDevice(gfxDevice_t gfx)
 {
     VKCHECK(vkDeviceWaitIdle(gfx->device));
-    vkUnmapMemory(gfx->device, gfx->stagingBuffer.memory);
-	gfxDestroyBuffer(gfx, &gfx->stagingBuffer);
+    vkUnmapMemory(gfx->device, gfx->stagingBuffer->memory);
+	gfxDestroyBuffer(gfx, gfx->stagingBuffer);
 	for (uint32_t i = 0; i < gfx->numBuffers; i++)
 	{
 		gfxDestroyTexture(gfx, gfx->imgBuffers[i]);
@@ -362,8 +379,8 @@ void gfxUpdateResources(gfxDevice_t gfx,
     size_t numBuffers)
 {
     uint32_t numBarriers = 0, numRegions = 0;
-    size_t availBytes = gfx->stagingBuffer.size;
-    uint8_t* buff = (uint8_t*)gfx->stagingBuffer.hostPtr;
+    size_t availBytes = gfx->stagingBuffer->size;
+    uint8_t* buff = (uint8_t*)gfx->stagingBuffer->hostPtr;
     size_t tmpBytes = numTextures * sizeof(VkImageMemoryBarrier);
     VkImageMemoryBarrier* barriers = (VkImageMemoryBarrier*)memStackAlloc(gfx->memory, tmpBytes);
     tmpBytes = numTextures * sizeof(VkBufferImageCopy);
@@ -386,7 +403,7 @@ void gfxUpdateResources(gfxDevice_t gfx,
             barrier->subresourceRange.layerCount = 1;
             barrier->subresourceRange.levelCount = 1;
             VkBufferImageCopy* region = &regions[numRegions++];
-            region->bufferOffset = buff - ((uint8_t*)gfx->stagingBuffer.hostPtr);
+            region->bufferOffset = buff - ((uint8_t*)gfx->stagingBuffer->hostPtr);
             region->imageExtent.width = textures[i]->width;
             region->imageExtent.height = textures[i]->height;
             region->imageExtent.depth = 1;
@@ -413,7 +430,7 @@ void gfxUpdateResources(gfxDevice_t gfx,
     {
         /* assumed:  texture barrier index matches region index */
         vkCmdCopyBufferToImage(gfx->cmdBuffer,
-            gfx->stagingBuffer.handle,
+            gfx->stagingBuffer->handle,
             barriers[i].image,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             1, &regions[i]);

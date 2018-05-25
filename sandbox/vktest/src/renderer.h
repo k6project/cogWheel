@@ -3,10 +3,8 @@
 #include "vulkan10.h"
 
 #include <stdbool.h>
-#include <stdint.h>
 
 #include <core/math.h>
-#include <core/memory.h>
 
 typedef enum gfxDataFormat_t
 {
@@ -20,24 +18,25 @@ typedef enum gfxDataFormat_t
     GFX_DEFAULT_DEPTH_STENCIL_FORMAT = GFX_FORMAT_D24S8
 } gfxDataFormat_t;
 
-typedef struct gfxBuffer_t
-{
-	VkBuffer handle;
-	VkDeviceMemory memory;
-	void* hostPtr;
-	uint32_t size;
-	uint32_t flags :27;
-	bool upload    : 1;
-	bool uniform   : 1;
-	bool vertex    : 1;
-	bool index     : 1;
-	bool ownGpuMem : 1;
-} gfxBuffer_t;
-
 struct GLFWwindow;
 
 struct gfxDevice_t;
 struct gfxShader_t;
+struct gfxRenderState_t;
+
+struct gfxBuffer_t
+{
+    VkBuffer handle;
+    VkDeviceMemory memory;
+    void* hostPtr;
+    uint32_t size;
+    uint32_t flags :27;
+    bool upload    : 1;
+    bool uniform   : 1;
+    bool vertex    : 1;
+    bool index     : 1;
+    bool ownGpuMem : 1;
+};
 
 struct gfxTexture_t
 {
@@ -58,21 +57,29 @@ struct gfxTexture_t
 
 typedef struct gfxDevice_t* gfxDevice_t;
 typedef struct gfxShader_t* gfxShader_t;
+typedef struct gfxBuffer_t* gfxBuffer_t;
 typedef struct gfxTexture_t* gfxTexture_t;
 
-VkResult gfxCreateBuffer(gfxDevice_t gfx, gfxBuffer_t* buffer);
+gfxBuffer_t gfxAllocBuffer(gfxDevice_t gfx);
 
-void gfxDestroyBuffer(gfxDevice_t gfx, gfxBuffer_t* buffer);
+VkResult gfxCreateBuffer(gfxDevice_t gfx,
+    gfxBuffer_t buffer);
+
+void gfxDestroyBuffer(gfxDevice_t gfx,
+    gfxBuffer_t buffer);
 
 gfxTexture_t gfxAllocTexture(gfxDevice_t gfx);
 
-VkResult gfxCreateTexture(gfxDevice_t gfx, gfxTexture_t texture);
+VkResult gfxCreateTexture(gfxDevice_t gfx,
+    gfxTexture_t texture);
 
-void gfxDestroyTexture(gfxDevice_t gfx, gfxTexture_t texture);
+void gfxDestroyTexture(gfxDevice_t gfx,
+    gfxTexture_t texture);
 
 gfxDevice_t gfxAllocDevice();
 
-VkResult gfxCreateDevice(gfxDevice_t gfx, struct GLFWwindow* window);
+VkResult gfxCreateDevice(gfxDevice_t gfx,
+    struct GLFWwindow* window);
 
 void gfxDestroyDevice(gfxDevice_t gfx);
 
