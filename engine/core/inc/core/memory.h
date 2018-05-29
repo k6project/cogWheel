@@ -7,7 +7,9 @@ extern "C"
 
 #include <stddef.h>
 
-#define MEM_ALIGN_DEFAULT 16
+#define MEM_ALIGN_DEFAULT 16u
+#define MEM_ALIGN_MASK (MEM_ALIGN_DEFAULT-1)
+#define MEM_ALIGNED(n) ((n+MEM_ALIGN_MASK)&(~MEM_ALIGN_MASK))
 
 #ifdef _MSC_VER
 #define ALIGNED(n) __declspec( align( n ) )
@@ -38,6 +40,8 @@ void* memObjPoolGet(memObjPool_t* pool);
 void memObjPoolPut(memObjPool_t* pool, void* obj);
 
 void memObjPoolDestroy(memObjPool_t** outPool);
+    
+size_t memObjPoolGetStride(memObjPool_t* pool);
 
 #ifdef _cplusplus
 }

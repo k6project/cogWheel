@@ -116,7 +116,9 @@ void ngMakeVoronoi(ngVoronoi_t* gen, gfxTexture_t texture)
 	{
 		float result = 1.f;
 		uint32_t x = i % texture->width;
-		uint32_t y = (i / texture->width) % UINT32_MAX;
+		uint32_t y = (i / texture->width) & UINT32_MAX;
+        /*x = (x + 100) % texture->width;
+        y = (y + 100) % texture->height;*/
 		uint32_t blockR = y / gen->blockSize[1];
 		uint32_t blockC = x / gen->blockSize[0];
 		int32_t blockX = (int32_t)(x % gen->blockSize[0]);

@@ -6,6 +6,19 @@
 
 #include <core/math.h>
 
+struct gfxTextureImpl_t;
+struct gfxBufferImpl_t;
+struct gfxShaderImpl_t;
+struct gfxPipelineImpl_t;
+
+typedef union
+{
+    struct gfxTextureImpl_t* texture;
+    struct gfxBufferImpl_t* buffer;
+    struct gfxShaderImpl_t* shader;
+    struct gfxPipelineImpl_t* pipeline;
+} gfxResource_t;
+
 typedef enum gfxDataFormat_t
 {
     GFX_FORMAT_BRGA8 = VK_FORMAT_B8G8R8A8_UNORM,
@@ -21,13 +34,19 @@ typedef enum gfxDataFormat_t
 struct GLFWwindow;
 
 struct gfxDevice_t;
-struct gfxShader_t;
-struct gfxRenderState_t;
+
+struct gfxShader_t
+{
+    gfxResource_t impl;
+};
+
+struct gfxPipeline_t
+{
+    gfxResource_t impl;
+};
 
 struct gfxBuffer_t
 {
-    VkBuffer handle;
-    VkDeviceMemory memory;
     void* hostPtr;
     uint32_t size;
     uint32_t flags :27;
@@ -36,13 +55,11 @@ struct gfxBuffer_t
     bool vertex    : 1;
     bool index     : 1;
     bool ownGpuMem : 1;
+    gfxResource_t impl;
 };
 
 struct gfxTexture_t
 {
-	VkImage image;
-	VkImageView handle;
-	VkDeviceMemory memory;
 	uint32_t width : 16;
 	uint32_t height : 16;
 	gfxDataFormat_t format : 24;
@@ -53,6 +70,7 @@ struct gfxTexture_t
 	bool hasPendingData : 1;
 	size_t imageDataSize;
 	void* imageData;
+    gfxResource_t impl;
 };
 
 typedef struct gfxDevice_t* gfxDevice_t;

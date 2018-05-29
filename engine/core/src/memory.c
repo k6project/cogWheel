@@ -14,14 +14,14 @@
 #elif !MEM_ALIGN_DEFAULT
 #error Default memory alignment should not be zero
 #else
-#define ALIGN_MASK ((size_t)(MEM_ALIGN_DEFAULT-1))
+/*#define ALIGN_MASK ((size_t)(MEM_ALIGN_DEFAULT-1))*/
 #endif
 
 #define BIT_SET(addr,b) do {*(addr+(b>>3u)) |= (1u<<(b&7u));} while(0)
 #define BIT_UNSET(addr,b) do {*(addr+(b>>3u)) &= ~(1u<<(b&7u));} while(0)
 #define BIT_TEST(addr,b) ((*(addr+(b>>3u)) & (1u<<(b&7u))) == (1u<<(b&7u)))
 
-#define IS_ALIGNED(addr) (!(((size_t)addr) & ALIGN_MASK))
+#define IS_ALIGNED(addr) (!(((size_t)addr) & MEM_ALIGN_MASK))
 
 struct memStackMarker_t
 {
@@ -39,7 +39,7 @@ struct memStackAlloc_t
 void memStackInit(memStackAlloc_t** outStack, size_t size)
 {
     memStackDestroy(outStack);
-    size_t allocSize = (size + ALIGN_MASK) & (~ALIGN_MASK);
+    size_t allocSize = MEM_ALIGNED(size);/*(size + ALIGN_MASK) & (~ALIGN_MASK);*/
     size_t maskSize = (allocSize / sizeof(memStackAlloc_t)) >> 3;
     char* memory = (char*)calloc(1, allocSize + maskSize + sizeof(memStackAlloc_t));
     memStackAlloc_t* stack = (memStackAlloc_t*)memory;
@@ -51,7 +51,7 @@ void* memStackAlloc(memStackAlloc_t* stack, size_t size)
 {
     void* result = NULL;
     char* base = ((char*)stack) + sizeof(memStackAlloc_t);
-    size = (size + ALIGN_MASK) & (~ALIGN_MASK);
+    size = MEM_ALIGNED(size);/*(size + ALIGN_MASK) & (~ALIGN_MASK);*/
     size += sizeof(memStackMarker_t);
     memStackMarker_t* last = stack->lastMarker;
     char* markerPos = (last) ? ((char*)last + last->size + sizeof(memStackMarker_t)) : base;
@@ -105,7 +105,7 @@ struct memObjPool_t
 void memObjPoolInit(memObjPool_t** outPool, size_t objSize, size_t count)
 {
     assert(count < SIZE_MAX);
-    size_t stride = (objSize + ALIGN_MASK) & (~ALIGN_MASK);
+    size_t stride = MEM_ALIGNED(objSize);/*(objSize + ALIGN_MASK) & (~ALIGN_MASK);*/
     size_t chainSize = count * sizeof(size_t);
     size_t totalSize = stride * count;
     char* tmp = (char*)malloc(sizeof(memObjPool_t) + totalSize + chainSize);
@@ -167,4 +167,9 @@ void memObjPoolDestroy(memObjPool_t** outPool)
         free(pool);
         *outPool = NULL;
     }
+}
+
+size_t memObjPoolGetStride(memObjPool_t* pool)
+{
+    return pool->stride;
 }

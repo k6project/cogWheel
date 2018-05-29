@@ -17,6 +17,29 @@
 /* Macro to compare two pointers */
 #define SAME_ADDR(a,b) (((uintptr_t)a)==((uintptr_t)b))
 
+struct gfxTextureImpl_t
+{
+    VkImage image;
+    VkImageView view;
+    VkDeviceMemory memory;
+};
+
+struct gfxBufferImpl_t
+{
+    VkBuffer handle;
+    VkDeviceMemory memory;
+};
+
+struct gfxShaderImpl_t
+{
+    VkShaderModule handle;
+};
+
+struct gfxPipelineImpl_t
+{
+    VkPipeline handle;
+};
+
 typedef struct gfxBuffer_t_
 {
     struct gfxBuffer_t descr;
@@ -143,9 +166,11 @@ static VkResult gfxDeviceSetupCallback(void* context,
 
 gfxBuffer_t gfxAllocBuffer(gfxDevice_t gfx)
 {
-    void* tmp = memObjPoolGet(gfx->bufferPool);
-    memset(tmp, 0, sizeof(gfxBuffer_t_));
-    return (gfxBuffer_t)tmp;
+    gfxBuffer_t buff = (gfxBuffer_t)memObjPoolGet(gfx->bufferPool);
+    memset(buff, 0, memObjPoolGetStride(gfx->bufferPool));
+    size_t offset = MEM_ALIGNED(sizeof(struct gfxBuffer_t));
+    buff->impl.buffer = (struct gfxBufferImpl_t*)(((char*)buff) + offset);
+    return buff;
 }
 
 VkResult gfxCreateBuffer(gfxDevice_t gfx, gfxBuffer_t buffer)
@@ -159,29 +184,31 @@ VkResult gfxCreateBuffer(gfxDevice_t gfx, gfxBuffer_t buffer)
 	createInfo.usage |= (buffer->index) ? VK_BUFFER_USAGE_INDEX_BUFFER_BIT : 0;
 	createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	createInfo.size = buffer->size;
-	if (vkCreateBuffer(gfx->device, &createInfo, NULL, &buffer->handle) == VK_SUCCESS)
+    struct gfxBufferImpl_t* buff = buffer->impl.buffer;
+	if (vkCreateBuffer(gfx->device, &createInfo, NULL, &buff->handle) == VK_SUCCESS)
 	{
 		VkMemoryRequirements memReqs;
-		vkGetBufferMemoryRequirements(gfx->device, buffer->handle, &memReqs);
+		vkGetBufferMemoryRequirements(gfx->device, buff->handle, &memReqs);
 		assert(vklMemAlloc(gfx->device,
 			&gfx->memProps,
 			&memReqs,
 			(buffer->upload) 
 				? (VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) 
 				: VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			&buffer->memory) == VK_SUCCESS);
+			&buff->memory) == VK_SUCCESS);
 		buffer->ownGpuMem = true;
-		return vkBindBufferMemory(gfx->device, buffer->handle, buffer->memory, 0);
+		return vkBindBufferMemory(gfx->device, buff->handle, buff->memory, 0);
 	}
 	return VK_NOT_READY;
 }
 
 void gfxDestroyBuffer(gfxDevice_t gfx, gfxBuffer_t buffer)
 {
-	vkDestroyBuffer(gfx->device, buffer->handle, NULL);
+    struct gfxBufferImpl_t* buff = buffer->impl.buffer;
+	vkDestroyBuffer(gfx->device, buff->handle, NULL);
 	if (buffer->ownGpuMem)
 	{
-		vkFreeMemory(gfx->device, buffer->memory, NULL);
+		vkFreeMemory(gfx->device, buff->memory, NULL);
 		buffer->ownGpuMem = false;
 	}
     memObjPoolPut(gfx->bufferPool, buffer);
@@ -189,23 +216,25 @@ void gfxDestroyBuffer(gfxDevice_t gfx, gfxBuffer_t buffer)
 
 gfxTexture_t gfxAllocTexture(gfxDevice_t gfx)
 {
-	gfxTexture_t_* tex = (gfxTexture_t_*)memObjPoolGet(gfx->texturePool);
-	memset(tex, 0, sizeof(gfxTexture_t_));
-	gfxTexture_t result = &tex->descr;
-	assert(SAME_ADDR(tex, result));
-    return result;
+	gfxTexture_t tex = (gfxTexture_t)memObjPoolGet(gfx->texturePool);
+	memset(tex, 0, memObjPoolGetStride(gfx->texturePool));
+    size_t offset = MEM_ALIGNED(sizeof(struct gfxTexture_t));
+    tex->impl.texture = (struct gfxTextureImpl_t*)(((char*)tex) + offset);
+    return tex;
 }
 
 VkResult gfxCreateTexture(gfxDevice_t gfx, gfxTexture_t texture)
 {
-    assert(!texture->handle);
+    assert(texture->impl.texture);
+    struct gfxTextureImpl_t* tex = texture->impl.texture;
+    assert(!tex->view);
     assert(texture->width >= 1);
     assert(texture->height >= 1);
     if (texture->numMips < 1 || texture->renderTarget)
     {
         texture->numMips = 1;
     }
-    if (!texture->image)
+    if (!tex->image)
     {
         VkImageCreateInfo imageInfo;
         memset(&imageInfo, 0, sizeof(imageInfo));
@@ -237,15 +266,15 @@ VkResult gfxCreateTexture(gfxDevice_t gfx, gfxTexture_t texture)
         {
             imageInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
         }
-        assert(vkCreateImage(gfx->device, &imageInfo, NULL, &texture->image) == VK_SUCCESS);
+        assert(vkCreateImage(gfx->device, &imageInfo, NULL, &tex->image) == VK_SUCCESS);
         VkMemoryRequirements memReqs;
-        vkGetImageMemoryRequirements(gfx->device, texture->image, &memReqs);
+        vkGetImageMemoryRequirements(gfx->device, tex->image, &memReqs);
         assert(vklMemAlloc(gfx->device,
 			&gfx->memProps,
             &memReqs,
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            &texture->memory) == VK_SUCCESS);
-        assert(vkBindImageMemory(gfx->device, texture->image, texture->memory, 0) == VK_SUCCESS);
+            &tex->memory) == VK_SUCCESS);
+        assert(vkBindImageMemory(gfx->device, tex->image, tex->memory, 0) == VK_SUCCESS);
         texture->ownGpuMem = true;
     }
     VkImageViewCreateInfo viewInfo;
@@ -265,23 +294,25 @@ VkResult gfxCreateTexture(gfxDevice_t gfx, gfxTexture_t texture)
     viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.baseArrayLayer = 0;
     viewInfo.subresourceRange.layerCount = 1;
-    viewInfo.image = texture->image;
-    return vkCreateImageView(gfx->device, &viewInfo, NULL, &texture->handle);
+    viewInfo.image = tex->image;
+    return vkCreateImageView(gfx->device, &viewInfo, NULL, &tex->view);
 }
 
 void gfxDestroyTexture(gfxDevice_t gfx, gfxTexture_t texture)
 {
 	VKCHECK(vkDeviceWaitIdle(gfx->device));
-    vkDestroyImageView(gfx->device, texture->handle, NULL);
+    assert(texture->impl.texture);
+    struct gfxTextureImpl_t* tex = texture->impl.texture;
+    vkDestroyImageView(gfx->device, tex->view, NULL);
     if (texture->ownGpuMem)
     {
-		vkDestroyImage(gfx->device, texture->image, NULL);
-        vkFreeMemory(gfx->device, texture->memory, NULL);
+		vkDestroyImage(gfx->device, tex->image, NULL);
+        vkFreeMemory(gfx->device, tex->memory, NULL);
         texture->ownGpuMem = false;
     }
-    texture->memory = VK_NULL_HANDLE;
-    texture->handle = VK_NULL_HANDLE;
-    texture->image = VK_NULL_HANDLE;
+    tex->memory = VK_NULL_HANDLE;
+    tex->view = VK_NULL_HANDLE;
+    tex->image = VK_NULL_HANDLE;
     memObjPoolPut(gfx->texturePool, texture);
 }
 
@@ -295,8 +326,10 @@ VkResult gfxCreateDevice(gfxDevice_t gfx, struct GLFWwindow* window)
 {
 	assert(gfx);
     memStackInit(&gfx->memory, GFX_LINEAR_ALLOC_CAPACITY);
-    memObjPoolInit(&gfx->texturePool, sizeof(gfxTexture_t_), 16);
-    memObjPoolInit(&gfx->bufferPool, sizeof(gfxBuffer_t_), 16);
+    size_t texSize = MEM_ALIGNED(sizeof(struct gfxTexture_t)) + sizeof(struct gfxTextureImpl_t);
+    memObjPoolInit(&gfx->texturePool, texSize, 16);
+    size_t bufSize = MEM_ALIGNED(sizeof(struct gfxBuffer_t)) + sizeof(struct gfxBufferImpl_t);
+    memObjPoolInit(&gfx->bufferPool, bufSize, 16);
 	size_t imbBytes = GFX_DEFAULT_NUM_BUFFERS * sizeof(gfxTexture_t*);
     size_t cmbBytes = GFX_DEFAULT_NUM_BUFFERS * sizeof(VkCommandBuffer);
     size_t staticBytes = imbBytes + cmbBytes;
@@ -331,7 +364,7 @@ VkResult gfxCreateDevice(gfxDevice_t gfx, struct GLFWwindow* window)
         tex->height = gfx->surfaceSize.height;
         tex->format = gfx->surfFormat.format;
         tex->renderTarget = true;
-        tex->image = images[i];
+        tex->impl.texture->image = images[i];
         VKCHECK(gfxCreateTexture(gfx, tex));
         gfx->imgBuffers[i] = tex;
 	}
@@ -355,8 +388,9 @@ VkResult gfxCreateDevice(gfxDevice_t gfx, struct GLFWwindow* window)
 	gfx->stagingBuffer->upload = true;
 	gfx->stagingBuffer->size = GFX_STAGING_BUFFER_SIZE;
 	assert(gfxCreateBuffer(gfx, gfx->stagingBuffer) == VK_SUCCESS);
+    struct gfxBufferImpl_t* buff = gfx->stagingBuffer->impl.buffer;
     return vkMapMemory(gfx->device,
-		gfx->stagingBuffer->memory,
+		buff->memory,
 		0, gfx->stagingBuffer->size,
 		0, &gfx->stagingBuffer->hostPtr);
 }
@@ -364,7 +398,8 @@ VkResult gfxCreateDevice(gfxDevice_t gfx, struct GLFWwindow* window)
 void gfxDestroyDevice(gfxDevice_t gfx)
 {
     VKCHECK(vkDeviceWaitIdle(gfx->device));
-    vkUnmapMemory(gfx->device, gfx->stagingBuffer->memory);
+    struct gfxBufferImpl_t* buff = gfx->stagingBuffer->impl.buffer;
+    vkUnmapMemory(gfx->device, buff->memory);
 	gfxDestroyBuffer(gfx, gfx->stagingBuffer);
 	for (uint32_t i = 0; i < gfx->numBuffers; i++)
 	{
@@ -400,15 +435,17 @@ void gfxUpdateResources(gfxDevice_t gfx,
     {
         if (textures[i]->hasPendingData && textures[i]->imageDataSize <= availBytes)
         {
+            assert(textures[i]->impl.texture);
+            struct gfxTextureImpl_t* tex = textures[i]->impl.texture;
             VkImageMemoryBarrier* barrier = &barriers[numBarriers++];
             VKINIT(*barrier, VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER);
             memcpy(buff, textures[i]->imageData, textures[i]->imageDataSize);
             barrier->oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
             barrier->newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-            barrier->image = textures[i]->image;
+            barrier->image = tex->image;
             barrier->srcQueueFamilyIndex = gfx->queueFamily;
             barrier->dstQueueFamilyIndex = gfx->queueFamily;
-            barrier->image = textures[i]->image;
+            barrier->image = tex->image;
             barrier->subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;/*todo: depth/stencil ???*/
             barrier->subresourceRange.layerCount = 1;
             barrier->subresourceRange.levelCount = 1;
@@ -440,7 +477,7 @@ void gfxUpdateResources(gfxDevice_t gfx,
     {
         /* assumed:  texture barrier index matches region index */
         vkCmdCopyBufferToImage(gfx->cmdBuffer,
-            gfx->stagingBuffer->handle,
+            gfx->stagingBuffer->impl.buffer->handle,
             barriers[i].image,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             1, &regions[i]);
@@ -461,7 +498,7 @@ void gfxClearRenderTarget(gfxDevice_t gfx,
     barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     barrier.srcQueueFamilyIndex = gfx->queueFamily;
     barrier.dstQueueFamilyIndex = gfx->queueFamily;
-    barrier.image = tex->image;
+    barrier.image = tex->impl.texture->image;
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.layerCount = 1;
     barrier.subresourceRange.levelCount = 1;
@@ -470,7 +507,7 @@ void gfxClearRenderTarget(gfxDevice_t gfx,
     vkCmdPipelineBarrier(gfx->cmdBuffer, sFlags, dFlags, 0, 0, NULL, 0, NULL, 1, &barrier);
     VkClearColorValue* value = (VkClearColorValue*)color;
     vkCmdClearColorImage(gfx->cmdBuffer,
-        tex->image,
+        tex->impl.texture->image,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         value,
         1, &barrier.subresourceRange);
@@ -490,7 +527,7 @@ void gfxBlitTexture(gfxDevice_t gfx,
     barriers[0].newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     barriers[0].srcQueueFamilyIndex = gfx->queueFamily;
     barriers[0].dstQueueFamilyIndex = gfx->queueFamily;
-    barriers[0].image = dest->image;
+    barriers[0].image = dest->impl.texture->image;
     barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     barriers[0].subresourceRange.layerCount = 1;
     barriers[0].subresourceRange.levelCount = 1;
@@ -503,7 +540,7 @@ void gfxBlitTexture(gfxDevice_t gfx,
     barriers[1].newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
     barriers[1].srcQueueFamilyIndex = gfx->queueFamily;
     barriers[1].dstQueueFamilyIndex = gfx->queueFamily;
-    barriers[1].image = src->image;
+    barriers[1].image = src->impl.texture->image;
     barriers[1].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     barriers[1].subresourceRange.layerCount = 1;
     barriers[1].subresourceRange.levelCount = 1;
@@ -525,8 +562,8 @@ void gfxBlitTexture(gfxDevice_t gfx,
 	blit.dstOffsets[1].y = dest->height;
 	blit.dstOffsets[1].z = 1;
 	vkCmdBlitImage(gfx->cmdBuffer, 
-		src->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 
-		dest->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
+		src->impl.texture->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+		dest->impl.texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		1, &blit, VK_FILTER_NEAREST);
 }
 
@@ -549,7 +586,7 @@ void gfxEndFrame(gfxDevice_t gfx)
     barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     barrier.srcQueueFamilyIndex = gfx->queueFamily;
     barrier.dstQueueFamilyIndex = gfx->queueFamily;
-    barrier.image = gfx->backBuffer->image;
+    barrier.image = gfx->backBuffer->impl.texture->image;
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.layerCount = 1;
     barrier.subresourceRange.levelCount = 1;
