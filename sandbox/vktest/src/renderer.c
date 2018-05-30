@@ -11,12 +11,6 @@
 #define GFX_STAGING_BUFFER_SIZE (16u << 20)
 #define GFX_LINEAR_ALLOC_CAPACITY (4u << 20)
 
-/* Macro to access descriptor */
-#define DESCR(t) (t->descr)
-
-/* Macro to compare two pointers */
-#define SAME_ADDR(a,b) (((uintptr_t)a)==((uintptr_t)b))
-
 struct gfxTextureImpl_t
 {
     VkImage image;
@@ -32,25 +26,18 @@ struct gfxBufferImpl_t
 
 struct gfxShaderImpl_t
 {
-    VkShaderModule handle;
+    VkShaderModule vertex;
+	VkShaderModule hull;
+	VkShaderModule domain;
+	VkShaderModule geometry;
+	VkShaderModule pixel;
+	VkShaderModule compute;
 };
 
 struct gfxPipelineImpl_t
 {
     VkPipeline handle;
 };
-
-typedef struct gfxBuffer_t_
-{
-    struct gfxBuffer_t descr;
-} gfxBuffer_t_;
-
-typedef struct gfxTexture_t_
-{
-    struct gfxTexture_t descr;
-} gfxTexture_t_;
-
-typedef struct gfxTexture_t_* gfxTextureImpl_t;
 
 struct gfxDevice_t
 {

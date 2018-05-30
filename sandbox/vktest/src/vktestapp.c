@@ -11,6 +11,11 @@
 #include "renderer.h"
 #include "patterns.h"
 
+void onWindowResized(GLFWwindow* window, int width, int height)
+{
+	gfxDevice_t gfx = (gfxDevice_t)glfwGetWindowUserPointer(window);
+}
+
 int main(int argc, const char * argv[])
 {
     vklInitialize(*argv);
@@ -37,6 +42,8 @@ int main(int argc, const char * argv[])
             /*checkerboard(&tex);*/
             voronoiNoise(tex, 6, 6);
             assert(gfxCreateTexture(gfx, tex) == VK_SUCCESS);
+			glfwSetWindowUserPointer(window, gfx);
+			glfwSetFramebufferSizeCallback(window, &onWindowResized);
             while (!glfwWindowShouldClose(window))
             {
                 gfxBeginFrame(gfx);
