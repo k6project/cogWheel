@@ -1,5 +1,10 @@
 #pragma once
 
+#ifdef _cplusplus
+extern "C"
+{
+#endif
+
 #include <stddef.h>
 #include <stdbool.h>
 
@@ -92,3 +97,7 @@ typedef struct gfxApi_t_
 }* const gfxApi_t;
 
 gfxApi_t gfxApi();
+
+#ifdef _cplusplus
+}
+#endif

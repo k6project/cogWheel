@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 
 static const char* VK_REQUIRED_DEVICE_EXTENSIONS[] =
 {
@@ -175,4 +176,23 @@ gfxResult_t vklInitDevice(void* nativePtr)
 
 void vklDestroyDevice()
 {
+    VKCHECK(vkDeviceWaitIdle(gDevice.id));
+    struct gfxBufferImpl_t* buff = gDevice.stagingBuffer->impl.buffer;
+    vkUnmapMemory(gDevice.id, buff->memory);
+    vklDestroyBuffer(gDevice.stagingBuffer);
+    for (uint32_t i = 0; i < gDevice.numBuffers; i++)
+    {
+        vklDestroyTexture(gDevice.imgBuffers[i]);
+    }
+    vkDestroySemaphore(gDevice.id, gDevice.canSwap, NULL);
+    vkDestroySemaphore(gDevice.id, gDevice.canDraw, NULL);
+    vkDestroyCommandPool(gDevice.id, gDevice.cmdPool, NULL);
+    vkDestroySwapchainKHR(gDevice.id, gDevice.swapChain, NULL);
+    vkDestroyDevice(gDevice.id, NULL);
+    vkDestroySurfaceKHR(gContext.instance, gDevice.surface, NULL);
+    memObjPoolDestroy(&gDevice.texturePool);
+    memStackDestroy(&gDevice.memory);
+    gDevice.surface = VK_NULL_HANDLE;
+    gDevice.id = VK_NULL_HANDLE;
+    vklDestroyContext();
 }

@@ -4,6 +4,13 @@
 #include <assert.h>
 #include <stdlib.h>
 
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#include <CoreFoundation/CoreFoundation.h>
+#endif
+
 vklDevice_t gDevice;
 
 vklContext_t gContext = { .dll = NULL };
@@ -44,14 +51,8 @@ static const char* VK_REQUIRED_EXTENSIONS[] =
 #endif
 };
 
-static const char* VK_REQUIRED_DEVICE_EXTENSIONS[] =
-{
-	VK_KHR_SWAPCHAIN_EXTENSION_NAME
-};
-
 static const uint32_t VK_NUM_REQUIRED_LAYERS = sizeof(VK_REQUIRED_LAYERS) / sizeof(const char*);
 static const uint32_t VK_NUM_REQUIRED_EXTENSIONS = sizeof(VK_REQUIRED_EXTENSIONS) / sizeof(const char*);
-static const uint32_t VK_NUM_REQUIRED_DEVICE_EXTENSIONS = sizeof(VK_REQUIRED_DEVICE_EXTENSIONS) / sizeof(const char*);
 
 gfxResult_t vklInitContext()
 {
@@ -60,13 +61,17 @@ gfxResult_t vklInitContext()
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
 		gContext.dll = LoadLibrary("vulkan-1.dll");
 #else
-		const char* term = strrchr(appArg, '/');
+        CFBundleRef bundle = CFBundleGetMainBundle();
+        CFURLRef url = CFBundleCopyExecutableURL(bundle);
+        CFStringRef path = CFURLCopyFileSystemPath(url, kCFURLPOSIXPathStyle);
+        const char* pathStr = CFStringGetCStringPtr(path, kCFStringEncodingUTF8);
+		const char* term = strrchr(pathStr, '/');
 		static const char libName[] = "libvulkan.dylib";
 		if (term)
 		{
-			int length = term - appArg + 1;
+			int length = term - pathStr + 1;
 			char* cwd = (char*)malloc(length + sizeof(libName));
-			memcpy(cwd, appArg, length);
+			memcpy(cwd, pathStr, length);
 			memcpy(cwd + length, libName, sizeof(libName));
 			gContext.dll = dlopen(cwd, RTLD_LOCAL | RTLD_NOW);
 		}
@@ -74,6 +79,9 @@ gfxResult_t vklInitContext()
 		{
 			gContext.dll = dlopen(libName, RTLD_LOCAL | RTLD_NOW);
 		}
+        CFRelease(path);
+        CFRelease(url);
+        CFRelease(bundle);
 		if (!gContext.dll)
 		{
 			printf("%s\n", dlerror());

@@ -1,5 +1,10 @@
 #pragma once
 
+#ifdef _cplusplus
+extern "C"
+{
+#endif
+
 #include <core/memory.h>
 #include <gfx/coredefs.h>
 
@@ -104,7 +109,6 @@ struct gfxPipelineImpl_t
 gfxResult_t vklInitContext();
 void vklDestroyContext();
 VkSurfaceKHR vklCreateSurface(void* nativePtr);
-void vklDestroySurface(VkSurfaceKHR surface);
 gfxResult_t vklInitDevice(void* nativePtr);
 void vklDestroyDevice();
 gfxBuffer_t vklNewBuffer();
@@ -118,3 +122,7 @@ void vklUpdate(gfxTexture_t* textures, size_t numTextures, gfxBuffer_t* buffers,
 void vklClear(gfxTexture_t texture, vec4f_t color);
 void vklBlit(gfxTexture_t dest, gfxTexture_t src);
 void vklEndFrame();
+    
+#ifdef _cplusplus
+}
+#endif
