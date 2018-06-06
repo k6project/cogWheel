@@ -7,6 +7,7 @@
 #include <GLFW/glfw3.h>
 
 #include <core/math.h>
+#include <core/coredefs.h>
 
 #include "renderer.h"
 #include "patterns.h"
@@ -34,14 +35,14 @@ int main(int argc, const char * argv[])
         if (window)
         {
 			gfxDevice_t gfx = gfxAllocDevice();
-            assert(gfxCreateDevice(gfx, window) == VK_SUCCESS);
+            ENSURE(gfxCreateDevice(gfx, window) == VK_SUCCESS);
             gfxTexture_t tex = gfxAllocTexture(gfx);
 			tex->width = width;
 			tex->height = height;
             tex->renderTarget = true;
             /*checkerboard(&tex);*/
             voronoiNoise(tex, 6, 6);
-            assert(gfxCreateTexture(gfx, tex) == VK_SUCCESS);
+            ENSURE(gfxCreateTexture(gfx, tex) == VK_SUCCESS);
 			glfwSetWindowUserPointer(window, gfx);
 			glfwSetFramebufferSizeCallback(window, &onWindowResized);
             while (!glfwWindowShouldClose(window))

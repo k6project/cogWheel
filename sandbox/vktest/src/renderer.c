@@ -106,7 +106,7 @@ static VkResult gfxDeviceSetupCallback(void* context,
 				gfx->numBuffers = (surfaceCaps.minImageCount > gfx->numBuffers) ? surfaceCaps.minImageCount : gfx->numBuffers;
 				gfx->numBuffers = (surfaceCaps.maxImageCount < gfx->numBuffers) ? surfaceCaps.maxImageCount : gfx->numBuffers;
                 VKCHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &count, NULL));
-                assert(formats = (VkSurfaceFormatKHR*)memStackAlloc(gfx->memory, count * sizeof(VkSurfaceFormatKHR)));
+                ENSURE(formats = (VkSurfaceFormatKHR*)memStackAlloc(gfx->memory, count * sizeof(VkSurfaceFormatKHR)));
                 VKCHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &count, formats));
                 for (uint32_t k = 0; k <= count; k++)
                 {
@@ -118,7 +118,7 @@ static VkResult gfxDeviceSetupCallback(void* context,
                     }
                 }
 				VKCHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(info->handle, surface, &count, NULL));
-				assert(modes = (VkPresentModeKHR*)memStackAlloc(gfx->memory, count * sizeof(VkPresentModeKHR)));
+				ENSURE(modes = (VkPresentModeKHR*)memStackAlloc(gfx->memory, count * sizeof(VkPresentModeKHR)));
 				VKCHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(info->handle, surface, &count, modes));
 				for (uint32_t k = 0; k < count && gfx->presentMode != VK_PRESENT_MODE_MAILBOX_KHR; k++)
 				{
@@ -178,7 +178,7 @@ VkResult gfxCreateBuffer(gfxDevice_t gfx, gfxBuffer_t buffer)
 	{
 		VkMemoryRequirements memReqs;
 		vkGetBufferMemoryRequirements(gfx->device, buff->handle, &memReqs);
-		assert(vklMemAlloc(gfx->device,
+		ENSURE(vklMemAlloc(gfx->device,
 			&gfx->memProps,
 			&memReqs,
 			(buffer->upload) 
@@ -255,15 +255,15 @@ VkResult gfxCreateTexture(gfxDevice_t gfx, gfxTexture_t texture)
         {
             imageInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
         }
-        assert(vkCreateImage(gfx->device, &imageInfo, NULL, &tex->image) == VK_SUCCESS);
+        ENSURE(vkCreateImage(gfx->device, &imageInfo, NULL, &tex->image) == VK_SUCCESS);
         VkMemoryRequirements memReqs;
         vkGetImageMemoryRequirements(gfx->device, tex->image, &memReqs);
-        assert(vklMemAlloc(gfx->device,
+        ENSURE(vklMemAlloc(gfx->device,
 			&gfx->memProps,
             &memReqs,
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
             &tex->memory) == VK_SUCCESS);
-        assert(vkBindImageMemory(gfx->device, tex->image, tex->memory, 0) == VK_SUCCESS);
+        ENSURE(vkBindImageMemory(gfx->device, tex->image, tex->memory, 0) == VK_SUCCESS);
         texture->ownGpuMem = true;
     }
     VkImageViewCreateInfo viewInfo;
@@ -369,7 +369,7 @@ VkResult gfxCreateDevice(gfxDevice_t gfx, struct GLFWwindow* window)
     gfx->stagingBuffer = gfxAllocBuffer(gfx);
 	gfx->stagingBuffer->upload = true;
 	gfx->stagingBuffer->size = GFX_STAGING_BUFFER_SIZE;
-	assert(gfxCreateBuffer(gfx, gfx->stagingBuffer) == VK_SUCCESS);
+	ENSURE(gfxCreateBuffer(gfx, gfx->stagingBuffer) == VK_SUCCESS);
     struct gfxBufferImpl_t* buff = gfx->stagingBuffer->impl.buffer;
     return vkMapMemory(gfx->device,
 		buff->memory,

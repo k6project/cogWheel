@@ -3,16 +3,12 @@
 #include <math.h>
 #include <stdint.h>
 
-#ifdef WIN32
-#define MATH_INLINE __forceinline
-#else
-#define MATH_INLINE static inline __attribute__((always_inline))
-#endif
+#include "coredefs.h"
 
 typedef uint32_t prng_t[1];
 #define MATH_PRNG(s) {s}
 
-MATH_INLINE
+FORCE_INLINE
 uint32_t mathRandomu(prng_t prng)
 {
     uint32_t next = ((prng[0]) * 0x7FFFFFEDu + 0x7FFFFFC3u) % 0xFFFFFFFFu;
@@ -20,7 +16,7 @@ uint32_t mathRandomu(prng_t prng)
     return next;
 }
 
-MATH_INLINE
+FORCE_INLINE
 float mathRandomf(prng_t prng)
 {
     return mathRandomu(prng) / ((float)(0xFFFFFFFFu));
@@ -46,14 +42,14 @@ typedef vec4f_t quat_t;
 
 #define mathDeg2Rad(d) (d*0.0174532925f)
 
-MATH_INLINE
+FORCE_INLINE
 void mathVec2fSub(vec2f_t dest, const vec2f_t a, const vec2f_t b)
 {
 	dest[0] = a[0] - b[0];
 	dest[1] = a[1] - b[1];
 }
 
-MATH_INLINE
+FORCE_INLINE
 void mathVec3fSub(vec3f_t dest, const vec3f_t a, const vec3f_t b)
 {
     dest[0] = a[0] - b[0];
@@ -61,7 +57,7 @@ void mathVec3fSub(vec3f_t dest, const vec3f_t a, const vec3f_t b)
     dest[2] = a[2] - b[2];
 }
 
-MATH_INLINE
+FORCE_INLINE
 void mathVec3fCross(vec3f_t dest, const vec3f_t a, const vec3f_t b)
 {
     dest[0] = a[1] * b[2] - a[2] * b[1];
@@ -69,25 +65,25 @@ void mathVec3fCross(vec3f_t dest, const vec3f_t a, const vec3f_t b)
     dest[2] = a[0] * b[1] - a[1] * b[0];
 }
 
-MATH_INLINE
+FORCE_INLINE
 float mathVec2fDot(const vec2f_t a, const vec2f_t b)
 {
 	return a[0] * b[0] + a[1] * b[1];
 }
 
-MATH_INLINE
+FORCE_INLINE
 float mathVec3fDot(const vec3f_t a, const vec3f_t b)
 {
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
-MATH_INLINE
+FORCE_INLINE
 float mathVec2fLength(const vec2f_t a)
 {
 	return sqrtf(mathVec2fDot(a, a));
 }
 
-MATH_INLINE
+FORCE_INLINE
 void mathVec3fNormalize(vec3f_t dest)
 {
     float divisor = 1.f / sqrtf(mathVec3fDot(dest, dest));
@@ -104,7 +100,7 @@ void mathVec3fNormalize(vec3f_t dest)
     {0.f, 0.f, 0.f, 1.f}\
 }
 
-MATH_INLINE
+FORCE_INLINE
 void mathMat4fIdentity(mat4f_t dest)
 {
     dest[0][0] = 1.f, dest[0][1] = 0.f, dest[0][2] = 0.f, dest[0][3] = 0.f;
@@ -113,7 +109,7 @@ void mathMat4fIdentity(mat4f_t dest)
     dest[3][0] = 0.f, dest[3][1] = 0.f, dest[3][2] = 0.f, dest[3][3] = 1.f;
 }
 
-MATH_INLINE
+FORCE_INLINE
 void mathMat4fPerspective(mat4f_t dest, float fov, float ar, float zNear, float zFar)
 {
     float tmp = 1.f / (zFar - zNear);
@@ -125,7 +121,7 @@ void mathMat4fPerspective(mat4f_t dest, float fov, float ar, float zNear, float 
     dest[3][2] = -2.f * zFar * zNear * tmp;
 }
 
-MATH_INLINE
+FORCE_INLINE
 void mathQuatInit(quat_t dest, float x, float y, float z, float angle)
 {
     float a = 0.5f * angle;
@@ -136,7 +132,7 @@ void mathQuatInit(quat_t dest, float x, float y, float z, float angle)
     dest[3] = cosf(a);
 }
 
-MATH_INLINE
+FORCE_INLINE
 void mathQuatMul(quat_t dest, quat_t a, quat_t b)
 {
     dest[0] = b[0] * a[0] - b[1] * a[1] - b[2] * a[2] - b[3] * a[3];
