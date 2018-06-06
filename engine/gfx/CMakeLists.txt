@@ -1,0 +1,7 @@
+include(${CMAKE_UTILS})
+get_source_files(${CMAKE_CURRENT_LIST_DIR})
+add_library(gfx ${SOURCE_FILES})
+target_include_directories(gfx PUBLIC "${CMAKE_CURRENT_LIST_DIR}/inc")
+target_include_directories(gfx PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src")
+target_link_libraries(gfx core)
+add_vulkan_sdk(gfx TRUE)

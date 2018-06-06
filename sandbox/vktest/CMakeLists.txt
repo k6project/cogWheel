@@ -14,4 +14,4 @@ endif()
 target_link_libraries(vktest "glfw")
 target_link_libraries(vktest core)
 
-add_vulkan_sdk(vktest)
+add_vulkan_sdk(vktest FALSE)
