@@ -4,7 +4,7 @@
 #define DEBUG_BUILD
 #endif
 
-#ifdef MSC_VER
+#ifdef _MSC_VER
 #define debugBreak() __debugbreak()
 #define FORCE_INLINE __forceinline
 #else
@@ -15,5 +15,5 @@
 #ifdef DEBUG_BUILD
 #define ENSURE(c) if(!(c)) debugBreak();
 #else
-#define ENSURE(c) !(c);
+#define ENSURE(c) {(void)(c);}
 #endif

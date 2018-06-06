@@ -5,7 +5,8 @@ extern "C"
 {
 #endif
 
-#include <core/coredefs.h>
+#include <core/memory.h>
+#include <gfx/coredefs.h>
     
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>

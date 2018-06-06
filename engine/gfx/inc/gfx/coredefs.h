@@ -10,6 +10,14 @@ struct gfxTextureImpl_t;
 struct gfxBufferImpl_t;
 struct gfxPipelineImpl_t;
 
+enum
+{
+	GFX_MAX_FRAMEBUFFERS = 8,
+    GFX_NUM_FRAMEBUFFERS = 3,
+	GFX_SIZE_STAGING_BUFFER = (16u << 20),
+	GFX_SIZE_LINEAR_ALLOC = (4u << 20)
+};
+
 typedef union
 {
     struct gfxTextureImpl_t* texture;
@@ -68,11 +76,19 @@ typedef struct gfxTexture_t_* gfxTexture_t;
 
 typedef struct gfxApi_t_
 {
-    void (*const initDevice)();
+	gfxResult_t(*const initDevice)(void* nativePtr);
     void (*const destroyDevice)();
     gfxBuffer_t (*const newBuffer)();
     gfxResult_t (*const initBuffer)(gfxBuffer_t buffer);
     void (*const destroyBuffer)(gfxBuffer_t buffer);
+	gfxTexture_t (*const newTexture)();
+	gfxResult_t (*const initTexture)(gfxTexture_t texture);
+	void (*const destroyTexture)(gfxTexture_t texture);
+	void (*const beginFrame)();
+	void (*const update)(gfxTexture_t* textures, size_t numTextures, gfxBuffer_t* buffers, size_t numBuffers);
+	void (*const clear)(gfxTexture_t texture, vec4f_t color);
+	void (*const blit)(gfxTexture_t dest, gfxTexture_t src);
+	void (*const endFrame)();
 }* const gfxApi_t;
 
 gfxApi_t gfxApi();
