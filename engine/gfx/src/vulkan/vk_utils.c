@@ -1,8 +1,9 @@
 #include "vk_context.h"
-#include "vk_proc.h"
 
 #include <assert.h>
 #include <string.h>
+
+
 
 VkSurfaceKHR vklCreateSurface(void* nativePtr)
 {
@@ -28,8 +29,9 @@ VkSurfaceKHR vklCreateSurface(void* nativePtr)
     return surface;
 }
 
-VkResult vklMemAlloc(const VkMemoryRequirements* reqs, const VkMemoryPropertyFlags flags, VkDeviceMemory* memory)
+VkDeviceMemory vklMemAlloc(const VkMemoryRequirements* reqs, const VkMemoryPropertyFlags flags)
 {
+    VkDeviceMemory result = VK_NULL_HANDLE;
     uint32_t type = VK_MAX_MEMORY_TYPES;
     for (uint32_t i = 0; i < gDevice.memProps.memoryTypeCount; i++)
     {
@@ -47,7 +49,7 @@ VkResult vklMemAlloc(const VkMemoryRequirements* reqs, const VkMemoryPropertyFla
         allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         allocInfo.allocationSize = reqs->size;
         allocInfo.memoryTypeIndex = type;
-        return vkAllocateMemory(gDevice.id, &allocInfo, NULL, memory);
+        ENSURE(vkAllocateMemory(gDevice.id, &allocInfo, NULL, &result) == VK_SUCCESS);
     }
-    return VK_NOT_READY;
+    return result;
 }

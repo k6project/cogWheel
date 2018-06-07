@@ -10,6 +10,11 @@ extern "C"
 
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
+    
+#define VULKAN_API_GOBAL(proc) extern PFN_vk ## proc vk ## proc;
+#define VULKAN_API_INSTANCE(proc) extern PFN_vk ## proc vk ## proc;
+#define VULKAN_API_DEVICE(proc) extern PFN_vk ## proc vk ## proc;
+#include "vk_proc.inl.h"
 
 #define VKCHECK(call) do { VkResult VKRESULT = call ; ENSURE(VKRESULT==VK_SUCCESS);} while (0)
 #define VKINIT(obj,tname) do { memset(&obj, 0, sizeof(obj));(obj).sType = tname; } while (0)
@@ -109,6 +114,8 @@ struct gfxPipelineImpl_t
 gfxResult_t vklInitContext();
 void vklDestroyContext();
 VkSurfaceKHR vklCreateSurface(void* nativePtr);
+VkDeviceMemory vklMemAlloc(const VkMemoryRequirements* reqs, const VkMemoryPropertyFlags flags);
+    
 gfxResult_t vklInitDevice(void* nativePtr);
 void vklDestroyDevice();
 gfxBuffer_t vklNewBuffer();

@@ -1,5 +1,4 @@
 #include "vk_context.h"
-#include "vk_proc.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -16,6 +15,10 @@ vklDevice_t gDevice;
 vklContext_t gContext = { .dll = NULL };
 
 static PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
+#define VULKAN_API_GOBAL(proc) PFN_vk ## proc vk ## proc = NULL;
+#define VULKAN_API_INSTANCE(proc) PFN_vk ## proc vk ## proc = NULL;
+#define VULKAN_API_DEVICE(proc) PFN_vk ## proc vk ## proc = NULL;
+#include "vk_proc.inl.h"
 
 gfxApi_t gfxApi()
 {

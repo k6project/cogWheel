@@ -1,5 +1,4 @@
 #include "vk_context.h"
-#include "vk_proc.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -171,7 +170,8 @@ gfxResult_t vklInitDevice(void* nativePtr)
 	gDevice.stagingBuffer->size = GFX_SIZE_STAGING_BUFFER;
 	ENSURE(vklInitBuffer(gDevice.stagingBuffer) == VK_SUCCESS);
 	struct gfxBufferImpl_t* buff = gDevice.stagingBuffer->impl.buffer;
-	return vkMapMemory(gDevice.id, buff->memory, 0, gDevice.stagingBuffer->size, 0, &gDevice.stagingBuffer->hostPtr);
+	ENSURE(vkMapMemory(gDevice.id, buff->memory, 0, gDevice.stagingBuffer->size, 0, &gDevice.stagingBuffer->hostPtr) == VK_SUCCESS);
+    return GFX_SUCCESS;
 }
 
 void vklDestroyDevice()
