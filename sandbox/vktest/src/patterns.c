@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "renderer.h"
+#include <gfx/coredefs.h>
 
 static int lcd(uint32_t a, uint32_t b)
 {
@@ -18,7 +18,7 @@ static int lcd(uint32_t a, uint32_t b)
     return max;
 }
 
-void checkerboard(gfxTexture_t texture)
+void checkerboard(struct gfxTexture_t_* texture)
 {
     size_t step = lcd(texture->width, texture->height);
     size_t rows = texture->height / step;
@@ -158,7 +158,7 @@ void ngMakeVoronoi(ngVoronoi_t* gen, gfxTexture_t texture)
 	texture->sampledTexture = true;
 }
 
-void voronoiNoise(struct gfxTexture_t* texture, uint32_t gridW, uint32_t gridH)
+void voronoiNoise(struct gfxTexture_t_* texture, uint32_t gridW, uint32_t gridH)
 {
     assert(gridW > 0 && gridH > 0);
 	ngVoronoi_t* gen = NULL;

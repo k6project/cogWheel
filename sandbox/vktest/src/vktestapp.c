@@ -1,25 +1,25 @@
 #include <assert.h>
 #include <string.h>
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #include <windows.h>
 #endif
+
 #include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
 
 #include <core/math.h>
 #include <core/coredefs.h>
+#include <gfx/coredefs.h>
 
-#include "renderer.h"
 #include "patterns.h"
 
 void onWindowResized(GLFWwindow* window, int width, int height)
 {
-	gfxDevice_t gfx = (gfxDevice_t)glfwGetWindowUserPointer(window);
 }
 
 int main(int argc, const char * argv[])
 {
-    vklInitialize(*argv);
     if (glfwInit())
     {
         GLFWmonitor* monitor = NULL;
@@ -34,32 +34,30 @@ int main(int argc, const char * argv[])
         GLFWwindow* window = glfwCreateWindow(width, height, PROGRAM_NAME, monitor, NULL);
         if (window)
         {
-			gfxDevice_t gfx = gfxAllocDevice();
-            ENSURE(gfxCreateDevice(gfx, window) == VK_SUCCESS);
-            gfxTexture_t tex = gfxAllocTexture(gfx);
+			gfxApi_t gfx = gfxApi();
+            ENSURE(gfx->initDevice(glfwGetNativeView(window)) == GFX_SUCCESS);
+            gfxTexture_t tex = gfx->newTexture();
 			tex->width = width;
 			tex->height = height;
             tex->renderTarget = true;
             /*checkerboard(&tex);*/
             voronoiNoise(tex, 6, 6);
-            ENSURE(gfxCreateTexture(gfx, tex) == VK_SUCCESS);
-			glfwSetWindowUserPointer(window, gfx);
+            ENSURE(gfx->initTexture(tex) == GFX_SUCCESS);
 			glfwSetFramebufferSizeCallback(window, &onWindowResized);
             while (!glfwWindowShouldClose(window))
             {
-                gfxBeginFrame(gfx);
-                gfxUpdateResources(gfx, &tex, 1, NULL, 0);
-                gfxClearRenderTarget(gfx, NULL, (vec4f_t){0.f, 0.2f, 1.f, 1.f});
-				gfxBlitTexture(gfx, NULL, tex);
-                gfxEndFrame(gfx);
+				gfx->beginFrame();
+				gfx->update(&tex, 1, NULL, 0);
+				gfx->clear(NULL, (vec4f_t) { 0.f, 0.2f, 1.f, 1.f });
+				gfx->blit(NULL, tex);
+				gfx->endFrame();
                 glfwPollEvents();
             }
-			gfxDestroyTexture(gfx, tex);
-            gfxDestroyDevice(gfx);
+			gfx->destroyTexture(tex);
+            gfx->destroyDevice();
         }
         glfwDestroyWindow(window);
         glfwTerminate();
     }
-    vklShutdown();
     return 0;
 }

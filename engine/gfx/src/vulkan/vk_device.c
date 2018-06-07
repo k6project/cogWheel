@@ -50,7 +50,7 @@ static VkResult vklDeviceSelector(vklDeviceSetup_t* conf)
 				for (uint32_t k = 0; k <= count; k++)
 				{
 					assert(k < count);
-					if (formats[k].format == GFX_FORMAT_BGRA8_SRGB)
+					if (formats[k].format == vklGetFormat(GFX_FORMAT_BGRA8_SRGB))
 					{
 						gDevice.surfFormat = formats[k];
 						break;
@@ -96,6 +96,7 @@ gfxResult_t vklInitDevice(void* nativePtr)
 {
 	ENSURE(vklInitContext() == GFX_SUCCESS);
 	ENSURE(gDevice.surface = vklCreateSurface(nativePtr));
+	memStackInit(&gDevice.memory, GFX_SIZE_LINEAR_ALLOC);
 	vklDeviceSetup_t setup;
 	if (vklDeviceSelector(&setup) != VK_SUCCESS)
 	{
@@ -115,7 +116,6 @@ gfxResult_t vklInitDevice(void* nativePtr)
 #define VULKAN_API_DEVICE(proc) \
     ENSURE(vk ## proc = ( PFN_vk ## proc )vkGetDeviceProcAddr( gDevice.id, "vk" #proc ));
 #include "vk_proc.inl.h"
-	memStackInit(&gDevice.memory, GFX_SIZE_LINEAR_ALLOC);
 	size_t texSize = MEM_ALIGNED(sizeof(struct gfxTexture_t_)) + sizeof(struct gfxTextureImpl_t);
 	memObjPoolInit(&gDevice.texturePool, texSize, 16);
 	size_t bufSize = MEM_ALIGNED(sizeof(struct gfxBuffer_t_)) + sizeof(struct gfxBufferImpl_t);
@@ -143,7 +143,7 @@ gfxResult_t vklInitDevice(void* nativePtr)
 		gfxTexture_t tex = vklNewTexture();
 		tex->width = gDevice.surfaceSize.width;
 		tex->height = gDevice.surfaceSize.height;
-		tex->format = gDevice.surfFormat.format;
+		tex->format = GFX_SYSTEM_BUFFER_FORMAT;
 		tex->renderTarget = true;
 		tex->impl.texture->image = images[i];
 		VKCHECK(vklInitTexture(tex));

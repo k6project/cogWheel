@@ -13,5 +13,6 @@ elseif(WIN32)
 endif()
 target_link_libraries(vktest "glfw")
 target_link_libraries(vktest core)
+target_link_libraries(vktest gfx)
 
 add_vulkan_sdk(vktest FALSE)

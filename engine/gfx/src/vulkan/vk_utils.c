@@ -3,8 +3,6 @@
 #include <assert.h>
 #include <string.h>
 
-
-
 VkSurfaceKHR vklCreateSurface(void* nativePtr)
 {
     VkResult result = VK_SUCCESS;
@@ -16,7 +14,7 @@ VkSurfaceKHR vklCreateSurface(void* nativePtr)
     info.flags = 0;
     info.hinstance = GetModuleHandle(NULL);
     info.hwnd = nativePtr;
-    result = vkCreateWin32SurfaceKHR(vkCtx_.instance, &info, NULL, &surface);
+    result = vkCreateWin32SurfaceKHR(gContext.instance, &info, NULL, &surface);
 #elif defined(VK_USE_PLATFORM_MACOS_MVK)
     VkMacOSSurfaceCreateInfoMVK info;
     info.sType = VK_STRUCTURE_TYPE_MACOS_SURFACE_CREATE_INFO_MVK;

@@ -115,6 +115,7 @@ gfxResult_t vklInitContext();
 void vklDestroyContext();
 VkSurfaceKHR vklCreateSurface(void* nativePtr);
 VkDeviceMemory vklMemAlloc(const VkMemoryRequirements* reqs, const VkMemoryPropertyFlags flags);
+VkFormat vklGetFormat(gfxDataFormat_t format);
     
 gfxResult_t vklInitDevice(void* nativePtr);
 void vklDestroyDevice();

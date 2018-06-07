@@ -5,6 +5,20 @@
 
 #include <core/memory.h>
 
+VkFormat vklGetFormat(gfxDataFormat_t format)
+{
+	static const VkFormat formats[] =
+	{
+		/*GFX_FORMAT_BRGA8     */ VK_FORMAT_B8G8R8A8_UNORM,
+		/*GFX_FORMAT_BGRA8_SRGB*/ VK_FORMAT_B8G8R8A8_SRGB,
+		/*GFX_FORMAT_RGBA8     */ VK_FORMAT_R8G8B8A8_UNORM,
+		/*GFX_FORMAT_RGBA8_SRGB*/ VK_FORMAT_R8G8B8A8_SRGB,
+		/*GFX_FORMAT_D24S8     */ VK_FORMAT_D24_UNORM_S8_UINT,
+		/*GFX_FORMAT_GRAYSCALE */ VK_FORMAT_R8_UNORM
+	};
+	return (format < GFX_SYSTEM_BUFFER_FORMAT) ? formats[format] : gDevice.surfFormat.format;
+}
+
 gfxTexture_t vklNewTexture()
 {
     gfxTexture_t tex = (gfxTexture_t)memObjPoolGet(gDevice.texturePool);
@@ -35,7 +49,7 @@ gfxResult_t vklInitTexture(gfxTexture_t texture)
         imageInfo.arrayLayers = 1;
         imageInfo.extent.width = texture->width;
         imageInfo.extent.height = texture->height;
-        imageInfo.format = texture->format;
+        imageInfo.format = vklGetFormat(texture->format);
         imageInfo.mipLevels = texture->numMips;
         imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
         imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -67,7 +81,7 @@ gfxResult_t vklInitTexture(gfxTexture_t texture)
     VkImageViewCreateInfo viewInfo;
     VKINIT(viewInfo, VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO);
     viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    viewInfo.format = texture->format;
+    viewInfo.format = vklGetFormat(texture->format);
     switch (texture->format)
     {
         case GFX_FORMAT_D24S8:

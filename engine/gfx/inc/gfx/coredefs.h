@@ -44,8 +44,10 @@ typedef enum gfxDataFormat_t_
     GFX_FORMAT_RGBA8_SRGB, // = VK_FORMAT_R8G8B8A8_SRGB,
     GFX_FORMAT_D24S8, // = VK_FORMAT_D24_UNORM_S8_UINT,
     GFX_FORMAT_GRAYSCALE, //  = VK_FORMAT_R8_UNORM,
+	GFX_FORMAT_COUNT,
     GFX_DEFAULT_COLOR_FORMAT = GFX_FORMAT_BRGA8,
-    GFX_DEFAULT_DEPTH_STENCIL_FORMAT = GFX_FORMAT_D24S8
+    GFX_DEFAULT_DEPTH_STENCIL_FORMAT = GFX_FORMAT_D24S8,
+	GFX_SYSTEM_BUFFER_FORMAT = GFX_FORMAT_COUNT + 1
 } gfxDataFormat_t;
 
 struct gfxBuffer_t_
@@ -81,7 +83,7 @@ typedef struct gfxTexture_t_* gfxTexture_t;
 
 typedef struct gfxApi_t_
 {
-	gfxResult_t(*const initDevice)(void* nativePtr);
+	gfxResult_t (*const initDevice)(void* nativePtr);
     void (*const destroyDevice)();
     gfxBuffer_t (*const newBuffer)();
     gfxResult_t (*const initBuffer)(gfxBuffer_t buffer);
