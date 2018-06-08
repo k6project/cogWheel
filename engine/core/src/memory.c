@@ -1,6 +1,5 @@
 #include <core/memory.h>
 
-#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
@@ -59,7 +58,7 @@ void* memStackAlloc(memStackAlloc_t* stack, size_t size)
     {
         memStackMarker_t* marker = (memStackMarker_t*)markerPos;
         unsigned int markerBit = (((char*)marker - base) & UINT32_MAX) / ((unsigned int)MEM_ALIGN_DEFAULT);
-        assert(!BIT_TEST(stack->memLast, markerBit));
+        CHECK(!BIT_TEST(stack->memLast, markerBit));
         result = ((char*)marker) + sizeof(memStackMarker_t);
         BIT_SET(stack->memLast, markerBit);
         marker->prev = stack->lastMarker;
@@ -73,9 +72,9 @@ void memStackFree(memStackAlloc_t* stack, void* mem)
 {
     char* base = ((char*)stack) + sizeof(memStackAlloc_t);
     char* addr = (mem) ? ((char*)mem) - sizeof(memStackMarker_t) : base;
-    assert(IS_ALIGNED(addr) && (addr > base) && (addr < stack->memLast));
+    CHECK(IS_ALIGNED(addr) && (addr > base) && (addr < stack->memLast));
     unsigned int markerBit = ((addr - base) & UINT32_MAX) / ((unsigned int)MEM_ALIGN_DEFAULT);
-    assert(BIT_TEST(stack->memLast, markerBit));
+    CHECK(BIT_TEST(stack->memLast, markerBit));
     memStackMarker_t* marker = (memStackMarker_t*)addr;
     stack->lastMarker = marker->prev;
     BIT_UNSET(stack->memLast, markerBit);
@@ -83,7 +82,7 @@ void memStackFree(memStackAlloc_t* stack, void* mem)
 
 void memStackDestroy(memStackAlloc_t** outStack)
 {
-    assert(outStack);
+    CHECK(outStack);
     memStackAlloc_t* stack = *outStack;
     if (stack)
     {
@@ -104,7 +103,7 @@ struct memObjPool_t
 
 void memObjPoolInit(memObjPool_t** outPool, size_t objSize, size_t count)
 {
-    assert(count < SIZE_MAX);
+    CHECK(count < SIZE_MAX);
     size_t stride = MEM_ALIGNED(objSize);/*(objSize + ALIGN_MASK) & (~ALIGN_MASK);*/
     size_t chainSize = count * sizeof(size_t);
     size_t totalSize = stride * count;
@@ -141,11 +140,11 @@ void* memObjPoolGet(memObjPool_t* pool)
 void memObjPoolPut(memObjPool_t* pool, void* obj)
 {
     char* tmp = (char*)obj;
-    assert(tmp && tmp >= pool->memory && tmp < (char*)pool->chain);
+    CHECK(tmp && tmp >= pool->memory && tmp < (char*)pool->chain);
     size_t offset = tmp - pool->memory;
-    assert(offset % pool->stride == 0);
+    CHECK(offset % pool->stride == 0);
     size_t idx = offset / pool->stride;
-    assert(pool->chain[idx] == SIZE_MAX);
+    CHECK(pool->chain[idx] == SIZE_MAX);
     pool->chain[idx] = pool->count;
     if (pool->freeHead == pool->count)
     {
@@ -160,7 +159,7 @@ void memObjPoolPut(memObjPool_t* pool, void* obj)
 
 void memObjPoolDestroy(memObjPool_t** outPool)
 {
-    assert(outPool);
+    CHECK(outPool);
     memObjPool_t* pool = *outPool;
     if (pool)
     {

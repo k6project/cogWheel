@@ -1,6 +1,5 @@
 #include "vk_context.h"
 
-#include <assert.h>
 #include <stdlib.h>
 
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
@@ -85,44 +84,39 @@ gfxResult_t vklInitContext()
         CFRelease(path);
         CFRelease(url);
         CFRelease(bundle);
-		if (!gContext.dll)
-		{
-			printf("%s\n", dlerror());
-			assert(0);
-		}
 #endif
-		VkResult result = VK_SUCCESS;
+        if (!gContext.dll)
+        {
+            printf("%s\n", dlerror());
+            debugBreak();
+        }
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
 		vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)GetProcAddress(gContext.dll, "vkGetInstanceProcAddr");
 #else
 		vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)dlsym(gContext.dll, "vkGetInstanceProcAddr");
 #endif
-		assert(vkGetInstanceProcAddr);
+		CHECK(vkGetInstanceProcAddr);
 #define VULKAN_API_GOBAL(proc) \
     ENSURE(vk ## proc = ( PFN_vk ## proc )vkGetInstanceProcAddr( NULL, "vk" #proc ));
 #include "vk_proc.inl.h"
-		result = vkEnumerateInstanceLayerProperties(&gContext.numLayers, NULL);
-		assert(result == VK_SUCCESS);
+        VKCHECK(vkEnumerateInstanceLayerProperties(&gContext.numLayers, NULL));
 #ifdef DEBUG_BUILD
 		if (gContext.numLayers > 0)
 		{
 			gContext.layers = (VkLayerProperties*)malloc(gContext.numLayers * sizeof(VkLayerProperties));
-			result = vkEnumerateInstanceLayerProperties(&gContext.numLayers, gContext.layers);
-			assert(result == VK_SUCCESS);
+            VKCHECK(vkEnumerateInstanceLayerProperties(&gContext.numLayers, gContext.layers));
 			for (uint32_t i = 0; i < gContext.numLayers; i++)
 			{
 				printf("%s\n", gContext.layers[i].layerName);
 			}
 		}
 #endif
-		result = vkEnumerateInstanceExtensionProperties(NULL, &gContext.numExtensions, NULL);
-		assert(result == VK_SUCCESS);
+        VKCHECK(vkEnumerateInstanceExtensionProperties(NULL, &gContext.numExtensions, NULL));
 #ifdef DEBUG_BUILD
 		if (gContext.numExtensions > 0)
 		{
 			gContext.extensions = (VkExtensionProperties*)malloc(gContext.numExtensions * sizeof(VkExtensionProperties));
-			result = vkEnumerateInstanceExtensionProperties(NULL, &gContext.numExtensions, gContext.extensions);
-			assert(result == VK_SUCCESS);
+            VKCHECK(vkEnumerateInstanceExtensionProperties(NULL, &gContext.numExtensions, gContext.extensions));
 			for (uint32_t i = 0; i < gContext.numExtensions; i++)
 			{
 				printf("%s\n", gContext.extensions[i].extensionName);
@@ -145,21 +139,18 @@ gfxResult_t vklInitContext()
 		info.ppEnabledLayerNames = VK_REQUIRED_LAYERS;
 		info.enabledExtensionCount = VK_NUM_REQUIRED_EXTENSIONS;
 		info.ppEnabledExtensionNames = VK_REQUIRED_EXTENSIONS;
-		result = vkCreateInstance(&info, NULL, &gContext.instance);
-		assert(result == VK_SUCCESS);
+        VKCHECK(vkCreateInstance(&info, NULL, &gContext.instance));
 		gContext.numRequiredLayers = VK_NUM_REQUIRED_LAYERS;
 		gContext.requiredLayers = VK_REQUIRED_LAYERS;
 #define VULKAN_API_INSTANCE(proc) \
     ENSURE(vk ## proc = ( PFN_vk ## proc )vkGetInstanceProcAddr( gContext.instance, "vk" #proc ));
 #include "vk_proc.inl.h"
-		result = vkEnumeratePhysicalDevices(gContext.instance, &gContext.numDevices, NULL);
-		assert(result == VK_SUCCESS);
+        VKCHECK(vkEnumeratePhysicalDevices(gContext.instance, &gContext.numDevices, NULL));
 		if (gContext.numDevices > 0)
 		{
 			gContext.deviceInfo = (vklDeviceInfo_t*)calloc(gContext.numDevices, sizeof(vklDeviceInfo_t));
 			VkPhysicalDevice* devices = (VkPhysicalDevice*)malloc(gContext.numDevices * sizeof(VkPhysicalDevice));
-			result = vkEnumeratePhysicalDevices(gContext.instance, &gContext.numDevices, devices);
-			assert(result == VK_SUCCESS);
+            VKCHECK(vkEnumeratePhysicalDevices(gContext.instance, &gContext.numDevices, devices));
 			for (uint32_t i = 0; i < gContext.numDevices; i++)
 			{
 				gContext.deviceInfo[i].handle = devices[i];

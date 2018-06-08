@@ -1,7 +1,6 @@
 #include "patterns.h"
 
 #include <stdlib.h>
-#include <assert.h>
 
 #include <gfx/coredefs.h>
 
@@ -37,7 +36,7 @@ void checkerboard(struct gfxTexture_t_* texture)
     }
     else
     {
-        assert(texture->imageDataSize >= dataSize);
+        CHECK(texture->imageDataSize >= dataSize);
         texture->imageDataSize = dataSize;
     }
     for (size_t i = 0; i < dataSize; i++)
@@ -65,7 +64,7 @@ typedef struct ngVoronoi_t
 
 void ngInitVoronoi(ngVoronoi_t** gen, vec2u_t gridSize, uint32_t fpPerTile)
 {
-    assert(*gen == NULL);
+    CHECK(*gen == NULL);
     prng_t prng = MATH_PRNG(0);
     uint32_t numFeaturePoints = gridSize[0] * gridSize[1] * fpPerTile;
     ngVoronoi_t* tmp = (ngVoronoi_t*)malloc(sizeof(ngVoronoi_t) + numFeaturePoints * sizeof(vec2f_t));
@@ -160,7 +159,7 @@ void ngMakeVoronoi(ngVoronoi_t* gen, gfxTexture_t texture)
 
 void voronoiNoise(struct gfxTexture_t_* texture, uint32_t gridW, uint32_t gridH)
 {
-    assert(gridW > 0 && gridH > 0);
+    CHECK(gridW > 0 && gridH > 0);
 	ngVoronoi_t* gen = NULL;
 	ngInitVoronoi(&gen, (vec2u_t){gridW, gridH}, 1);
 	ngMakeVoronoi(gen, texture);

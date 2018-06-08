@@ -1,6 +1,5 @@
 #include "vk_context.h"
 
-#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -49,7 +48,7 @@ static VkResult vklDeviceSelector(vklDeviceSetup_t* conf)
 				VKCHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(info->handle, surface, &count, formats));
 				for (uint32_t k = 0; k <= count; k++)
 				{
-					assert(k < count);
+					CHECK(k < count);
 					if (formats[k].format == vklGetFormat(GFX_FORMAT_BGRA8_SRGB))
 					{
 						gDevice.surfFormat = formats[k];
@@ -120,7 +119,7 @@ gfxResult_t vklInitDevice(void* nativePtr)
 	memObjPoolInit(&gDevice.texturePool, texSize, 16);
 	size_t bufSize = MEM_ALIGNED(sizeof(struct gfxBuffer_t_)) + sizeof(struct gfxBufferImpl_t);
 	memObjPoolInit(&gDevice.bufferPool, bufSize, 16);
-	assert(gDevice.surface && gDevice.id);
+	CHECK(gDevice.surface && gDevice.id);
 	VkSwapchainCreateInfoKHR scCreateInfo;
 	VKINIT(scCreateInfo, VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR);
 	scCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;

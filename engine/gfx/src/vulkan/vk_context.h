@@ -5,6 +5,8 @@ extern "C"
 {
 #endif
 
+#include <string.h>
+    
 #include <core/memory.h>
 #include <gfx/coredefs.h>
 

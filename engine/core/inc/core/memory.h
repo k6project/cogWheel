@@ -5,7 +5,7 @@ extern "C"
 {
 #endif
 
-#include <stddef.h>
+#include <core/coredefs.h>
 
 #define MEM_ALIGN_DEFAULT 16u
 #define MEM_ALIGN_MASK (MEM_ALIGN_DEFAULT-1)

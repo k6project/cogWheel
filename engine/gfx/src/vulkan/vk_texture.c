@@ -1,6 +1,5 @@
 #include "vk_context.h"
 
-#include <assert.h>
 #include <string.h>
 
 #include <core/memory.h>
@@ -30,11 +29,11 @@ gfxTexture_t vklNewTexture()
 
 gfxResult_t vklInitTexture(gfxTexture_t texture)
 {
-    assert(texture->impl.texture);
+    CHECK(texture->impl.texture);
     struct gfxTextureImpl_t* tex = texture->impl.texture;
-    assert(!tex->view);
-    assert(texture->width >= 1);
-    assert(texture->height >= 1);
+    CHECK(!tex->view);
+    CHECK(texture->width >= 1);
+    CHECK(texture->height >= 1);
     if (texture->numMips < 1 || texture->renderTarget)
     {
         texture->numMips = 1;
@@ -103,7 +102,7 @@ gfxResult_t vklInitTexture(gfxTexture_t texture)
 void vklDestroyTexture(gfxTexture_t texture)
 {
     VKCHECK(vkDeviceWaitIdle(gDevice.id));
-    assert(texture->impl.texture);
+    CHECK(texture->impl.texture);
     struct gfxTextureImpl_t* tex = texture->impl.texture;
     vkDestroyImageView(gDevice.id, tex->view, NULL);
     if (texture->ownGpuMem)

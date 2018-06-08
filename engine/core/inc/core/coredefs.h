@@ -14,6 +14,10 @@
 
 #ifdef DEBUG_BUILD
 #define ENSURE(c) if(!(c)) debugBreak();
+#define CHECK(c) if(!(c)) debugBreak();
 #else
 #define ENSURE(c) {(void)(c);}
+#define CHECK(c)
 #endif
+
+#include <stddef.h>

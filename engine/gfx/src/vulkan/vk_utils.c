@@ -1,12 +1,10 @@
 #include "vk_context.h"
 
-#include <assert.h>
 #include <string.h>
 
 VkSurfaceKHR vklCreateSurface(void* nativePtr)
 {
-    VkResult result = VK_SUCCESS;
-    VkSurfaceKHR surface = NULL;
+    VkSurfaceKHR surface = VK_NULL_HANDLE;
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
     VkWin32SurfaceCreateInfoKHR info;
     info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
@@ -14,16 +12,15 @@ VkSurfaceKHR vklCreateSurface(void* nativePtr)
     info.flags = 0;
     info.hinstance = GetModuleHandle(NULL);
     info.hwnd = nativePtr;
-    result = vkCreateWin32SurfaceKHR(gContext.instance, &info, NULL, &surface);
+    VKCHECK(vkCreateWin32SurfaceKHR(gContext.instance, &info, NULL, &surface));
 #elif defined(VK_USE_PLATFORM_MACOS_MVK)
     VkMacOSSurfaceCreateInfoMVK info;
     info.sType = VK_STRUCTURE_TYPE_MACOS_SURFACE_CREATE_INFO_MVK;
     info.pNext = NULL;
     info.pView = nativePtr;
     info.flags = 0;
-    result = vkCreateMacOSSurfaceMVK(gContext.instance, &info, NULL, &surface);
+    VKCHECK(vkCreateMacOSSurfaceMVK(gContext.instance, &info, NULL, &surface));
 #endif
-    assert(result == VK_SUCCESS);
     return surface;
 }
 
