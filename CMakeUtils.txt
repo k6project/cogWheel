@@ -8,6 +8,13 @@ function(get_source_files PREFIX)
     set(SOURCE_FILES ${H_FILES} ${C_FILES} ${_H_FILES} ${HPP_FILES} ${CPP_FILES} ${_HPP_FILES} PARENT_SCOPE)
 endfunction(get_source_files)
 
+function(update_inline_shaders TARGET FOLDER_PATH)
+    add_custom_command(TARGET ${TARGET} PRE_BUILD 
+        COMMAND ${WORKSPACE_ROOT}/tools/spirv.py 
+        ARGS ${FOLDER_PATH}
+        WORKING_DIRECTORY ${WORKSPACE_ROOT})
+endfunction(update_inline_shaders)
+
 function(add_vulkan_sdk TARGET IS_STATIC_LIB)
     if(APPLE)
         set(SDK_ROOT "${WORKSPACE_ROOT}/extern/macos/vulkan")
@@ -19,35 +26,35 @@ function(add_vulkan_sdk TARGET IS_STATIC_LIB)
         file(GLOB VK_LAYERS_JSON "${SDK_ROOT}/macOS/etc/vulkan/explicit_layers.d/*.json")
         set(VK_ICD_JSON "${SDK_ROOT}/macOS/etc/vulkan/icd.d/MoltenVK_icd.json")
         add_custom_command(
-            TARGET vktest PRE_BUILD 
+            TARGET ${TARGET} PRE_BUILD 
             COMMAND ${CMAKE_COMMAND} -E copy_if_different ${VK_DYLIB} $<TARGET_FILE_DIR:${TARGET}>)
         add_custom_command(
-            TARGET vktest PRE_BUILD 
+            TARGET ${TARGET} PRE_BUILD 
             COMMAND mkdir -p $<TARGET_FILE_DIR:${TARGET}>/../lib)
         add_custom_command(
-            TARGET vktest PRE_BUILD 
+            TARGET ${TARGET} PRE_BUILD 
             COMMAND mkdir -p $<TARGET_FILE_DIR:${TARGET}>/../Resources/vulkan/icd.d)
         add_custom_command(
-            TARGET vktest PRE_BUILD 
+            TARGET ${TARGET} PRE_BUILD 
             COMMAND mkdir -p $<TARGET_FILE_DIR:${TARGET}>/../Resources/vulkan/explicit_layer.d)
         add_custom_command(
-            TARGET vktest POST_BUILD 
+            TARGET ${TARGET} POST_BUILD 
             COMMAND ${CMAKE_COMMAND} -E copy_if_different ${VK_ICD} ${VK_LAYERS} 
             $<TARGET_FILE_DIR:${TARGET}>/../lib
         )
         add_custom_command(
-            TARGET vktest POST_BUILD 
+            TARGET ${TARGET} POST_BUILD 
             COMMAND ${CMAKE_COMMAND} -E copy_if_different ${VK_ICD_JSON} 
             $<TARGET_FILE_DIR:${TARGET}>/../Resources/vulkan/icd.d
         )
         add_custom_command(
-            TARGET vktest POST_BUILD 
+            TARGET ${TARGET} POST_BUILD 
             COMMAND ${CMAKE_COMMAND} -E copy_if_different ${VK_LAYERS_JSON} 
             $<TARGET_FILE_DIR:${TARGET}>/../Resources/vulkan/explicit_layer.d
         )
         add_custom_command(
-            TARGET vktest POST_BUILD 
-            COMMAND ln -sf ${VK_LIBNAME} $<TARGET_FILE_DIR:vktest>/libvulkan.dylib
+            TARGET ${TARGET} POST_BUILD 
+            COMMAND ln -sf ${VK_LIBNAME} $<TARGET_FILE_DIR:${TARGET}>/libvulkan.dylib
         )
         endif()
         target_compile_definitions(${TARGET} PRIVATE VK_USE_PLATFORM_MACOS_MVK)
