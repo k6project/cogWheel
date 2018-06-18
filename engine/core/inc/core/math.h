@@ -114,11 +114,17 @@ void mathMat4fPerspective(mat4f_t dest, float fov, float ar, float zNear, float 
 {
     float tmp = 1.f / (zFar - zNear);
     float ctanFOV = 1.f / tanf(fov * 0.5f);
-    dest[0][0] = ctanFOV;
-    dest[1][1] = ctanFOV / ar;
+    dest[0][0] = ar * ctanFOV;
+    dest[1][1] = ctanFOV;
+#ifndef MATH_D3D
     dest[2][2] = -(zFar + zNear) * tmp;
     dest[2][3] = -1.f;
     dest[3][2] = -2.f * zFar * zNear * tmp;
+#else
+	dest[2][2] = zFar * tmp;
+	dest[2][3] = 1.f;
+	dest[3][2] = -zFar * zNear * tmp;
+#endif
 }
 
 FORCE_INLINE

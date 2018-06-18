@@ -13,6 +13,7 @@ endif()
 set(WORKSPACE_ROOT ${CMAKE_CURRENT_LIST_DIR})
 set(CMAKE_UTILS ${CMAKE_CURRENT_LIST_DIR}/CMakeUtils.txt)
 
+add_subdirectory(extern/common/glfw)
 add_subdirectory(extern/common/stb_image)
 add_subdirectory(extern/common/shaderc)
 add_subdirectory(extern/common/fltk)

@@ -1,0 +1,10 @@
+include(${CMAKE_UTILS})
+
+get_source_files(${CMAKE_CURRENT_LIST_DIR})
+add_executable(dxtest WIN32 ${SOURCE_FILES})
+target_compile_definitions(dxtest PRIVATE PROGRAM_NAME="DxTest_D3D11" PROGRAM_VERSION=0)
+target_include_directories(dxtest PRIVATE "${CMAKE_CURRENT_LIST_DIR}/inc")
+target_include_directories(dxtest PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src")
+target_compile_definitions(dxtest PRIVATE GLFW_EXPOSE_NATIVE_WIN32)
+target_link_libraries(dxtest glfw)
+target_link_libraries(dxtest core)

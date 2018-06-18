@@ -53,7 +53,7 @@ def needToCompile(shaderFile, inlineFile):
         print("Inline shader %s does not exist, compiling" % inlineFile)
         result = True
     if not result:
-        print "Inline shader file up to date, skipping"
+        print("Inline shader file up to date, skipping")
     return result
 
 def preprocessShader(shaderFile):
