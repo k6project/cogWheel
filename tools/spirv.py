@@ -11,11 +11,13 @@ GLSL_STAGE_MACRO = ["_VS_", "_TES_", "_TCS_", "_GS_", "_FS_", "_CS_"]
 GLSL_ENTRY_POINTS = ["vsMain", "tesMain", "tcsMain", "gsMain", "fsMain", "csMain"]
 
 def getGLSLCompiler(baseDir):
-    glslcBin = os.path.join(baseDir, *['extern', 'macos', 'vulkan', 'macOS', 'bin', 'glslc'])
-    if os.path.exists(glslcBin) and os.path.isfile(glslcBin):
-        print("Found GLSL compiler: " + glslcBin)
-    else:
-        glslcBin = None
+    glslcBin = None
+    if sys.platform == "darwin":
+        glslcBin = os.path.join(baseDir, *['extern', 'macos', 'vulkan', 'macOS', 'bin', 'glslc'])
+        if os.path.exists(glslcBin) and os.path.isfile(glslcBin):
+            print("Found GLSL compiler: " + glslcBin)
+        else:
+            glslcBin = None
     return glslcBin
 
 def findShaderFiles(baseDir):
