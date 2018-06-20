@@ -7,6 +7,7 @@ set_source_files_properties(${HLSL_VS_FILES} PROPERTIES VS_SHADER_ENTRYPOINT "vs
 file(GLOB_RECURSE HLSL_PS_FILES LIST_DIRECTORIES false "${CMAKE_CURRENT_LIST_DIR}/src/*_ps.hlsl")
 set_source_files_properties(${HLSL_PS_FILES} PROPERTIES VS_SHADER_ENTRYPOINT "psMain" VS_SHADER_TYPE "Pixel" VS_SHADER_MODEL "4.0")
 add_executable(dxtest WIN32 ${SOURCE_FILES} ${HLSL_VS_FILES} ${HLSL_PS_FILES})
+set_target_properties(dxtest PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$(OutDir)")
 target_compile_definitions(dxtest PRIVATE PROGRAM_NAME="DxTest_D3D11" PROGRAM_VERSION=0)
 target_include_directories(dxtest PRIVATE "${CMAKE_CURRENT_LIST_DIR}/inc")
 target_include_directories(dxtest PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src")
