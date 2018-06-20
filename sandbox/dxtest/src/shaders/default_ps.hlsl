@@ -6,5 +6,6 @@ struct PSIn
 
 float4 psMain(PSIn stageIn) : SV_Target0
 {
-	return float4(0.0, 0.5 + stageIn.texCoord.y * 0.5, 1.0, 1.0);
+	float3 rgb = float3(1.0 - dot(stageIn.texCoord, stageIn.texCoord), stageIn.texCoord);
+	return float4(rgb, 1.0);
 }

@@ -110,12 +110,20 @@ void mathMat4fIdentity(mat4f_t dest)
 }
 
 FORCE_INLINE
+void mathMat4fTranslate(mat4f_t dest, const vec3f_t offsets)
+{
+	dest[3][0] += offsets[0];
+	dest[3][1] += offsets[1];
+	dest[3][2] += offsets[2];
+}
+
+FORCE_INLINE
 void mathMat4fPerspective(mat4f_t dest, float fov, float ar, float zNear, float zFar)
 {
     float tmp = 1.f / (zFar - zNear);
     float ctanFOV = 1.f / tanf(fov * 0.5f);
-    dest[0][0] = ar * ctanFOV;
-    dest[1][1] = ctanFOV;
+    dest[0][0] = ctanFOV;
+    dest[1][1] = ctanFOV * ar;
 #ifndef MATH_D3D
     dest[2][2] = -(zFar + zNear) * tmp;
     dest[2][3] = -1.f;

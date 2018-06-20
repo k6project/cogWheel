@@ -16,10 +16,32 @@ static IDXGISwapChain* gSwapchain;
 static ID3D11Device* gDevice;
 static ID3D11DeviceContext* gDC;
 static ID3D11RenderTargetView* gBackBuffer;
+
 static ID3D11VertexShader* gVertexShader;
 static ID3D11PixelShader* gPixelShader;
+static ID3D11Buffer* gGlobalParamsBuffer;
 
-static const vec4f_t gClearColor= { 0.f, 0.5f, 1.f, 1.f };
+static struct
+{
+	mat4f_t projection, view;
+} gGlobalParams;
+
+static const struct vertex_t
+{
+	vec3f_t position, normal;
+	vec2f_t texCoord;
+} gQuadMeshData[] = 
+{
+	{ { -1.f,  1.f,0.f },{ 0.f,0.f,-1.f },{ 0.f,0.f } },
+	{ {  1.f,  1.f,0.f },{ 0.f,0.f,-1.f },{ 1.f,0.f } },
+	{ { -1.f, -1.f,0.f },{ 0.f,0.f,-1.f },{ 0.f,1.f } },
+	{ { -1.f, -1.f,0.f },{ 0.f,0.f,-1.f },{ 0.f,1.f } },
+	{ {  1.f,  1.f,0.f },{ 0.f,0.f,-1.f },{ 1.f,0.f } },
+	{ {  1.f, -1.f,0.f },{ 0.f,0.f,-1.f },{ 1.f,1.f } },
+};
+
+static const vec4f_t gClearColor = { 0.f, 0.5f, 1.f, 1.f };
+
 
 static void d3dResizeFrame(int w, int h)
 {
@@ -38,6 +60,10 @@ static void d3dResizeFrame(int w, int h)
 	viewport.Width = (float)w;
 	viewport.Height = (float)h;
 	gDC->RSSetViewports(1, &viewport);
+	D3D11_MAPPED_SUBRESOURCE res;
+	gDC->Map(gGlobalParamsBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &res);
+	memcpy(res.pData, &gGlobalParams, sizeof(gGlobalParams));
+	gDC->Unmap(gGlobalParamsBuffer, 0);
 }
 
 static void d3dInitialize(HWND hWnd)
@@ -60,14 +86,21 @@ static void d3dInitialize(HWND hWnd)
 	GetClientRect(hWnd, &windowRect);
 	int w = (windowRect.right - windowRect.left) & INT_MAX;
 	int h = (windowRect.bottom - windowRect.top) & INT_MAX;
+	D3D11_BUFFER_DESC bd = {};
+	bd.Usage = D3D11_USAGE_DYNAMIC;
+	bd.ByteWidth = sizeof(gGlobalParams);
+	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	ENSURE(!FAILED(gDevice->CreateBuffer(&bd, NULL, &gGlobalParamsBuffer)));
 	d3dResizeFrame(w, h);
 	ID3D10Blob *vsBlob = NULL, *psBlob = NULL;
-	ENSURE(D3DReadFileToBlob(L"vertex_shader.cso", &vsBlob) == S_OK);
-	ENSURE(D3DReadFileToBlob(L"pixel_shader.cso", &psBlob) == S_OK);
+	ENSURE(D3DReadFileToBlob(L"default_vs.cso", &vsBlob) == S_OK);
+	ENSURE(D3DReadFileToBlob(L"default_ps.cso", &psBlob) == S_OK);
 	gDevice->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), NULL, &gVertexShader);
 	gDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), NULL, &gPixelShader);
 	gDC->VSSetShader(gVertexShader, 0, 0);
 	gDC->PSSetShader(gPixelShader, 0, 0);
+	gDC->VSSetConstantBuffers(0, 1, &gGlobalParamsBuffer);
 }
 
 static void d3dRenderFrame()
@@ -80,6 +113,7 @@ static void d3dRenderFrame()
 
 static void d3dShutdown()
 {
+	gGlobalParamsBuffer->Release();
 	gVertexShader->Release();
 	gPixelShader->Release();
 	gSwapchain->Release();
@@ -91,6 +125,7 @@ static void d3dShutdown()
 #ifndef PROGRAM_FULLSCREEN
 static void onWindowResized(GLFWwindow* window, int width, int height)
 {
+	mathMat4fPerspective(gGlobalParams.projection, mathDeg2Rad(90.f), width / ((float)height), 0.01f, 1000.f);
 	d3dResizeFrame(width, height);
 }
 #endif
@@ -113,6 +148,11 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow)
         GLFWwindow* window = glfwCreateWindow(width, height, PROGRAM_NAME, monitor, nullptr);
         if (window)
         {
+			vec3f_t worldOrigin {0.f, 0.f, 1.f};
+			glfwGetWindowSize(window, &width, &height);
+			mathMat4fIdentity(gGlobalParams.view);
+			mathMat4fTranslate(gGlobalParams.view, worldOrigin);
+			mathMat4fPerspective(gGlobalParams.projection, mathDeg2Rad(90.f), width / ((float)height), 0.01f, 1000.f);
 			d3dInitialize(glfwGetNativeView(window));
 #ifndef PROGRAM_FULLSCREEN
 			glfwSetFramebufferSizeCallback(window, &onWindowResized);

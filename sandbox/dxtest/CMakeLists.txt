@@ -1,7 +1,12 @@
 include(${CMAKE_UTILS})
 
 get_source_files(${CMAKE_CURRENT_LIST_DIR})
-add_executable(dxtest WIN32 ${SOURCE_FILES})
+
+file(GLOB_RECURSE HLSL_VS_FILES LIST_DIRECTORIES false "${CMAKE_CURRENT_LIST_DIR}/src/*_vs.hlsl")
+set_source_files_properties(${HLSL_VS_FILES} PROPERTIES VS_SHADER_ENTRYPOINT "vsMain" VS_SHADER_TYPE "Vertex" VS_SHADER_MODEL "4.0")
+file(GLOB_RECURSE HLSL_PS_FILES LIST_DIRECTORIES false "${CMAKE_CURRENT_LIST_DIR}/src/*_ps.hlsl")
+set_source_files_properties(${HLSL_PS_FILES} PROPERTIES VS_SHADER_ENTRYPOINT "psMain" VS_SHADER_TYPE "Pixel" VS_SHADER_MODEL "4.0")
+add_executable(dxtest WIN32 ${SOURCE_FILES} ${HLSL_VS_FILES} ${HLSL_PS_FILES})
 target_compile_definitions(dxtest PRIVATE PROGRAM_NAME="DxTest_D3D11" PROGRAM_VERSION=0)
 target_include_directories(dxtest PRIVATE "${CMAKE_CURRENT_LIST_DIR}/inc")
 target_include_directories(dxtest PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src")
