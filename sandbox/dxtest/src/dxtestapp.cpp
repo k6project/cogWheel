@@ -19,7 +19,9 @@ static ID3D11RenderTargetView* gBackBuffer;
 
 static ID3D11VertexShader* gVertexShader;
 static ID3D11PixelShader* gPixelShader;
+static ID3D11InputLayout* gQuadVertexLayout;
 static ID3D11Buffer* gGlobalParamsBuffer;
+static ID3D11Buffer* gQuadMeshVertexBuffer;
 
 static struct
 {
@@ -32,16 +34,51 @@ static const struct vertex_t
 	vec2f_t texCoord;
 } gQuadMeshData[] = 
 {
-	{ { -1.f,  1.f,0.f },{ 0.f,0.f,-1.f },{ 0.f,0.f } },
-	{ {  1.f,  1.f,0.f },{ 0.f,0.f,-1.f },{ 1.f,0.f } },
-	{ { -1.f, -1.f,0.f },{ 0.f,0.f,-1.f },{ 0.f,1.f } },
-	{ { -1.f, -1.f,0.f },{ 0.f,0.f,-1.f },{ 0.f,1.f } },
-	{ {  1.f,  1.f,0.f },{ 0.f,0.f,-1.f },{ 1.f,0.f } },
-	{ {  1.f, -1.f,0.f },{ 0.f,0.f,-1.f },{ 1.f,1.f } },
+	{ { -1.f, 1.f,0.f },{ 0.f,0.f,-1.f },{ 0.f,0.f } },
+	{ {  1.f, 1.f,0.f },{ 0.f,0.f,-1.f },{ 1.f,0.f } },
+	{ { -1.f,-1.f,0.f },{ 0.f,0.f,-1.f },{ 0.f,1.f } },
+	{ { -1.f,-1.f,0.f },{ 0.f,0.f,-1.f },{ 0.f,1.f } },
+	{ {  1.f, 1.f,0.f },{ 0.f,0.f,-1.f },{ 1.f,0.f } },
+	{ {  1.f,-1.f,0.f },{ 0.f,0.f,-1.f },{ 1.f,1.f } },
 };
 
 static const vec4f_t gClearColor = { 0.f, 0.5f, 1.f, 1.f };
 
+static struct
+{
+	struct { float fovY, nearPlane, farPlane; } projection;
+	struct { vec3f_t from, to, forward, right, up; } camera;
+} gScene;
+
+void d3dUpdateBuffer(ID3D11Buffer* buff, const void* data, size_t size)
+{
+	D3D11_MAPPED_SUBRESOURCE res = {};
+	gDC->Map(buff, 0, D3D11_MAP_WRITE_DISCARD, 0, &res);
+	memcpy(res.pData, data, size);
+	gDC->Unmap(buff, 0);
+}
+
+ID3D11Buffer* d3dMakeBuffer(UINT bindingMask, bool dynamic, size_t size, const void* data = nullptr)
+{
+	CHECK(size);
+	ID3D11Buffer* result = NULL;
+	D3D11_BUFFER_DESC desc = {};
+	D3D11_SUBRESOURCE_DATA* pInitData = NULL, initData = {};
+	desc.Usage = (dynamic) ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE;
+	desc.ByteWidth = size & UINT_MAX;
+	desc.BindFlags = bindingMask;
+	if (dynamic)
+	{
+		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	}
+	if (data)
+	{
+		initData.pSysMem = data;
+		pInitData = &initData;
+	}
+	ENSURE(!FAILED(gDevice->CreateBuffer(&desc, pInitData, &result)));
+	return result;
+}
 
 static void d3dResizeFrame(int w, int h)
 {
@@ -60,10 +97,7 @@ static void d3dResizeFrame(int w, int h)
 	viewport.Width = (float)w;
 	viewport.Height = (float)h;
 	gDC->RSSetViewports(1, &viewport);
-	D3D11_MAPPED_SUBRESOURCE res;
-	gDC->Map(gGlobalParamsBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &res);
-	memcpy(res.pData, &gGlobalParams, sizeof(gGlobalParams));
-	gDC->Unmap(gGlobalParamsBuffer, 0);
+	d3dUpdateBuffer(gGlobalParamsBuffer, &gGlobalParams, sizeof(gGlobalParams));
 }
 
 static void d3dInitialize(HWND hWnd)
@@ -80,19 +114,20 @@ static void d3dInitialize(HWND hWnd)
 #else
 	scd.Windowed = TRUE;
 #endif
-	D3D_FEATURE_LEVEL level = D3D_FEATURE_LEVEL_11_0;
-	D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, NULL, NULL, NULL, D3D11_SDK_VERSION, &scd, &gSwapchain, &gDevice, &level, &gDC);
+	D3D_FEATURE_LEVEL level = D3D_FEATURE_LEVEL_11_1;
+	D3D_FEATURE_LEVEL levels[] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_11_1 };
+	D3D11CreateDeviceAndSwapChain(
+		NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 
+		D3D11_CREATE_DEVICE_DEBUG
+		,levels, 2, D3D11_SDK_VERSION, &scd, &gSwapchain, &gDevice, &level, &gDC);
 	RECT windowRect;
 	GetClientRect(hWnd, &windowRect);
 	int w = (windowRect.right - windowRect.left) & INT_MAX;
 	int h = (windowRect.bottom - windowRect.top) & INT_MAX;
-	D3D11_BUFFER_DESC bd = {};
-	bd.Usage = D3D11_USAGE_DYNAMIC;
-	bd.ByteWidth = sizeof(gGlobalParams);
-	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	ENSURE(!FAILED(gDevice->CreateBuffer(&bd, NULL, &gGlobalParamsBuffer)));
+	gGlobalParamsBuffer = d3dMakeBuffer(D3D11_BIND_CONSTANT_BUFFER, true, sizeof(gGlobalParams));
 	d3dResizeFrame(w, h);
+	gDC->VSSetConstantBuffers(0, 1, &gGlobalParamsBuffer);
+	gQuadMeshVertexBuffer = d3dMakeBuffer(D3D11_BIND_VERTEX_BUFFER, false, sizeof(gQuadMeshData), gQuadMeshData);
 	ID3D10Blob *vsBlob = NULL, *psBlob = NULL;
 	ENSURE(D3DReadFileToBlob(L"default_vs.cso", &vsBlob) == S_OK);
 	ENSURE(D3DReadFileToBlob(L"default_ps.cso", &psBlob) == S_OK);
@@ -100,14 +135,23 @@ static void d3dInitialize(HWND hWnd)
 	gDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), NULL, &gPixelShader);
 	gDC->VSSetShader(gVertexShader, 0, 0);
 	gDC->PSSetShader(gPixelShader, 0, 0);
-	gDC->VSSetConstantBuffers(0, 1, &gGlobalParamsBuffer);
+	const D3D11_INPUT_ELEMENT_DESC vertexFormat[] =
+	{
+		{ "POSITION",  0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0 , D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL",    0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12 , D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD",  0, DXGI_FORMAT_R32G32_FLOAT,    0, 24 , D3D11_INPUT_PER_VERTEX_DATA, 0 }
+	};
+	gDevice->CreateInputLayout(vertexFormat, 3, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &gQuadVertexLayout);
+	gDC->IASetInputLayout(gQuadVertexLayout);
 }
 
 static void d3dRenderFrame()
 {
 	gDC->ClearRenderTargetView(gBackBuffer, gClearColor);
 	gDC->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	gDC->Draw(3, 0);
+	UINT stride = sizeof(vertex_t), offset = 0;
+	gDC->IASetVertexBuffers(0, 1, &gQuadMeshVertexBuffer, &stride, &offset);
+	gDC->Draw(6, 0);
 	gSwapchain->Present(0, 0);
 }
 
@@ -148,11 +192,13 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow)
         GLFWwindow* window = glfwCreateWindow(width, height, PROGRAM_NAME, monitor, nullptr);
         if (window)
         {
-			vec3f_t worldOrigin {0.f, 0.f, 1.f};
+			vec3f_t camera {0.f, 0.f,-5.f};
+			vec3f_t origin {0.f, 0.f, 0.f};
+			vec3f_t up     {0.f, 1.f, 0.f};
 			glfwGetWindowSize(window, &width, &height);
 			mathMat4fIdentity(gGlobalParams.view);
-			mathMat4fTranslate(gGlobalParams.view, worldOrigin);
-			mathMat4fPerspective(gGlobalParams.projection, mathDeg2Rad(90.f), width / ((float)height), 0.01f, 1000.f);
+			mathMat4LookAt(gGlobalParams.view, camera, origin, up);
+			mathMat4fPerspective(gGlobalParams.projection, mathDeg2Rad(60.f), width / ((float)height), 0.01f, 1000.f);
 			d3dInitialize(glfwGetNativeView(window));
 #ifndef PROGRAM_FULLSCREEN
 			glfwSetFramebufferSizeCallback(window, &onWindowResized);

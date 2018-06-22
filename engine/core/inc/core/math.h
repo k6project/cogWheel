@@ -92,7 +92,7 @@ void mathVec3fNormalize(vec3f_t dest)
     dest[2] *= divisor;
 }
 
-#define math_MAT4_IDENTITY \
+#define MATH_MAT4_IDENTITY \
 {\
     {1.f, 0.f, 0.f, 0.f},\
     {0.f, 1.f, 0.f, 0.f},\
@@ -133,6 +133,28 @@ void mathMat4fPerspective(mat4f_t dest, float fov, float ar, float zNear, float 
 	dest[2][3] = 1.f;
 	dest[3][2] = -zFar * zNear * tmp;
 #endif
+}
+
+FORCE_INLINE
+void mathMat4LookAt(mat4f_t dest, const vec3f_t eye, const vec3f_t to, const vec3f_t up)
+{
+	vec3f_t forward, right;
+	mathVec3fSub(forward, to, eye);
+	mathVec3fNormalize(forward);
+	mathVec3fCross(right, up, forward);
+	mathVec3fNormalize(right);
+	dest[0][0] = right[0];
+	dest[0][1] = up[0];
+	dest[0][2] = forward[0];
+	dest[1][0] = right[1];
+	dest[1][1] = up[1];
+	dest[1][2] = forward[1];
+	dest[2][0] = right[2];
+	dest[2][1] = up[2];
+	dest[2][2] = forward[2];
+	dest[3][0] = -eye[0];
+	dest[3][1] = -eye[1];
+	dest[3][2] = -eye[2];
 }
 
 FORCE_INLINE
