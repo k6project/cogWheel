@@ -174,8 +174,71 @@ static void onWindowResized(GLFWwindow* window, int width, int height)
 }
 #endif
 
+void objParseVector2f(const char* str, vec2f_t out)
+{
+	char* separator = NULL;
+	float* currentVal = &out[0];
+	const char* readPtr = str;
+	out[0] = strtof(readPtr, &separator);
+	readPtr = separator;
+	out[1] = strtof(readPtr, &separator);
+}
+
+void objParseVector3f(const char* str, vec3f_t out)
+{
+	char* separator = NULL;
+	float* currentVal = &out[0];
+	const char* readPtr = str;
+	out[0] = strtof(readPtr, &separator);
+	readPtr = separator;
+	out[1] = strtof(readPtr, &separator);
+	readPtr = separator;
+	out[2] = strtof(readPtr, &separator);
+}
+
+const char* objParseVertex(const char* str, vec3i_t out)
+{
+	char* separator = NULL;
+	int* currentVal = &out[0];
+	const char* readPtr = str;
+	out[2] = out[1] = out[0] = -1;
+	while (str)
+	{
+		*currentVal = (strtol(readPtr, &separator, 10) & INT_MAX) - 1;
+		if (separator == readPtr)
+		{
+			*currentVal = -1;
+		}
+		else if (*separator != '/')
+		{
+			break;
+		}
+		readPtr = separator + 1;
+		currentVal += 1;
+	}
+	return separator;
+}
+
+FORCE_INLINE
+void objParseTriangle(const char* str, vec3i_t vertexA, vec3i_t vertexB, vec3i_t vertexC)
+{
+	objParseVertex(objParseVertex(objParseVertex(str, vertexA), vertexB), vertexC);
+}
+
 int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow)
 {
+	vec3i_t a = { 0, 0, 0 };
+	vec3i_t b = { 0, 0, 0 };
+	vec3i_t c = { 0, 0, 0 };
+	const char* face = "4 5 6";
+	objParseVertex(objParseVertex(objParseVertex(face, a), b), c);
+	face = " 9//1 8//2 7//3";
+	objParseVertex(objParseVertex(objParseVertex(face, a), b), c);
+
+	vec3f_t p = {0.f, 0.f, 0.f};
+	objParseVector3f(" 5 7 8", p);
+	objParseVector3f(" .5 7 0.8", p);
+
     if (glfwInit())
     {
         GLFWmonitor* monitor = nullptr;
