@@ -1,10 +1,18 @@
 #pragma once
 
+#ifdef _cplusplus
+extern "C"
+{
+#endif
+
 #include <math.h>
 #include <stdint.h>
 
 #include "coredefs.h"
-
+    
+#define PROC(c) { c ;}
+#define FUNC(c) {return (c);}
+    
 typedef uint32_t prng_t[1];
 #define MATH_PRNG(s) {s}
 
@@ -22,19 +30,136 @@ float mathRandomf(prng_t prng)
     return mathRandomu(prng) / ((float)(0xFFFFFFFFu));
 }
 
-typedef int32_t vec2i_t[2];
-typedef int32_t vec3i_t[3];
-typedef int32_t vec4i_t[4];
+typedef int32_t vec2i_t[2] ALIGNED_16;
+typedef int32_t vec3i_t[3] ALIGNED_16;
+typedef int32_t vec4i_t[4] ALIGNED_16;
 
-typedef uint32_t vec2u_t[2];
-typedef uint32_t vec3u_t[3];
-typedef uint32_t vec4u_t[4];
+typedef uint32_t vec2u_t[2] ALIGNED_16;
+typedef uint32_t vec3u_t[3] ALIGNED_16;
+typedef uint32_t vec4u_t[4] ALIGNED_16;
 
-typedef float vec2f_t[2];
-typedef float vec3f_t[3];
-typedef float vec4f_t[4];
+typedef float vec2f_t[2] ALIGNED_16;
+typedef float vec3f_t[3] ALIGNED_16;
+typedef float vec4f_t[4] ALIGNED_16;
+    
+///////////////////////////////////////////////////////////////////////////////////
+#define vec2_dot_impl(a,b) (a[0]*b[0]+a[1]*b[1])
+#define vec3_dot_impl(a,b) (vec2_dot_impl(a,b)+a[2]*b[2])
+#define vec4_dot_impl(a,b) (vec3_dot_impl(a,b)+a[3]*b[3])
+FORCE_INLINE float vec2f_dot(vec2f_t a, vec2f_t b) FUNC(vec2_dot_impl(a,b))
+FORCE_INLINE int32_t vec2i_dot(vec2i_t a, vec2i_t b) FUNC(vec2_dot_impl(a,b))
+FORCE_INLINE uint32_t vec2u_dot(vec2u_t a, vec2u_t b) FUNC(vec2_dot_impl(a,b))
+FORCE_INLINE float vec3f_dot(vec3f_t a, vec3f_t b) FUNC(vec3_dot_impl(a,b))
+FORCE_INLINE int32_t vec3i_dot(vec3i_t a, vec3i_t b) FUNC(vec3_dot_impl(a,b))
+FORCE_INLINE uint32_t vec3u_dot(vec3u_t a, vec3u_t b) FUNC(vec3_dot_impl(a,b))
+FORCE_INLINE float vec4f_dot(vec4f_t a, vec4f_t b) FUNC(vec4_dot_impl(a,b))
+FORCE_INLINE int32_t vec4i_dot(vec4i_t a, vec4i_t b) FUNC(vec4_dot_impl(a,b))
+FORCE_INLINE uint32_t vec4u_dot(vec4u_t a, vec4u_t b) FUNC(vec4_dot_impl(a,b))
+    
+#define vec2_add_impl(d,a,b) do { d[0]=a[0]+b[0]; d[1]=a[1]+b[1]; } while(0)
+#define vec3_add_impl(d,a,b) do { vec2_add_impl(d,a,b);d[2]=a[2]+b[2]; } while(0)
+#define vec4_add_impl(d,a,b) do { vec3_add_impl(d,a,b);d[3]=a[3]+b[3]; } while(0)
+FORCE_INLINE void vec2f_add(vec2f_t dest, vec2f_t a, vec2f_t b) PROC(vec2_add_impl(dest, a, b))
+FORCE_INLINE void vec2i_add(vec2i_t dest, vec2i_t a, vec2i_t b) PROC(vec2_add_impl(dest, a, b))
+FORCE_INLINE void vec2u_add(vec2u_t dest, vec2u_t a, vec2u_t b) PROC(vec2_add_impl(dest, a, b))
+FORCE_INLINE void vec3f_add(vec3f_t dest, vec3f_t a, vec3f_t b) PROC(vec3_add_impl(dest, a, b))
+FORCE_INLINE void vec3i_add(vec3i_t dest, vec3i_t a, vec3i_t b) PROC(vec3_add_impl(dest, a, b))
+FORCE_INLINE void vec3u_add(vec3u_t dest, vec3u_t a, vec3u_t b) PROC(vec3_add_impl(dest, a, b))
+FORCE_INLINE void vec4f_add(vec4f_t dest, vec4f_t a, vec4f_t b) PROC(vec4_add_impl(dest, a, b))
+FORCE_INLINE void vec4i_add(vec4i_t dest, vec4i_t a, vec4i_t b) PROC(vec4_add_impl(dest, a, b))
+FORCE_INLINE void vec4u_add(vec4u_t dest, vec4u_t a, vec4u_t b) PROC(vec4_add_impl(dest, a, b))
+    
+#define vec2_adds_impl(d,a,b) do { d[0]=a[0]+b; d[1]=a[1]+b; } while(0)
+#define vec3_adds_impl(d,a,b) do { vec2_adds_impl(d,a,b);d[2]=a[2]+b; } while(0)
+#define vec4_adds_impl(d,a,b) do { vec3_adds_impl(d,a,b);d[3]=a[3]+b; } while(0)
+FORCE_INLINE void vec2f_adds(vec2f_t dest, vec2f_t a, float b) PROC(vec2_adds_impl(dest, a, b))
+FORCE_INLINE void vec2i_adds(vec2i_t dest, vec2i_t a, int32_t b) PROC(vec2_adds_impl(dest, a, b))
+FORCE_INLINE void vec2u_adds(vec2u_t dest, vec2u_t a, uint32_t b) PROC(vec2_adds_impl(dest, a, b))
+FORCE_INLINE void vec3f_adds(vec3f_t dest, vec3f_t a, float b) PROC(vec3_adds_impl(dest, a, b))
+FORCE_INLINE void vec3i_adds(vec3i_t dest, vec3i_t a, int32_t b) PROC(vec3_adds_impl(dest, a, b))
+FORCE_INLINE void vec3u_adds(vec3u_t dest, vec3u_t a, uint32_t b) PROC(vec3_adds_impl(dest, a, b))
+FORCE_INLINE void vec4f_adds(vec4f_t dest, vec4f_t a, float b) PROC(vec4_adds_impl(dest, a, b))
+FORCE_INLINE void vec4i_adds(vec4i_t dest, vec4i_t a, int32_t b) PROC(vec4_adds_impl(dest, a, b))
+FORCE_INLINE void vec4u_adds(vec4u_t dest, vec4u_t a, uint32_t b) PROC(vec4_adds_impl(dest, a, b))
+    
+#define vec2_sub_impl(d,a,b) do { d[0]=a[0]-b[0]; d[1]=a[1]-b[1]; } while(0)
+#define vec3_sub_impl(d,a,b) do { vec2_sub_impl(d,a,b);d[2]=a[2]-b[2]; } while(0)
+#define vec4_sub_impl(d,a,b) do { vec3_sub_impl(d,a,b);d[3]=a[3]-b[3]; } while(0)
+FORCE_INLINE void vec2f_sub(vec2f_t dest, vec2f_t a, vec2f_t b) PROC(vec2_sub_impl(dest, a, b))
+FORCE_INLINE void vec2i_sub(vec2i_t dest, vec2i_t a, vec2i_t b) PROC(vec2_sub_impl(dest, a, b))
+FORCE_INLINE void vec2u_sub(vec2u_t dest, vec2u_t a, vec2u_t b) PROC(vec2_sub_impl(dest, a, b))
+FORCE_INLINE void vec3f_sub(vec3f_t dest, vec3f_t a, vec3f_t b) PROC(vec3_sub_impl(dest, a, b))
+FORCE_INLINE void vec3i_sub(vec3i_t dest, vec3i_t a, vec3i_t b) PROC(vec3_sub_impl(dest, a, b))
+FORCE_INLINE void vec3u_sub(vec3u_t dest, vec3u_t a, vec3u_t b) PROC(vec3_sub_impl(dest, a, b))
+FORCE_INLINE void vec4f_sub(vec4f_t dest, vec4f_t a, vec4f_t b) PROC(vec4_sub_impl(dest, a, b))
+FORCE_INLINE void vec4i_sub(vec4i_t dest, vec4i_t a, vec4i_t b) PROC(vec4_sub_impl(dest, a, b))
+FORCE_INLINE void vec4u_sub(vec4u_t dest, vec4u_t a, vec4u_t b) PROC(vec4_sub_impl(dest, a, b))
 
-#define VEC2_MOV(dv, sv) do{dv[0]=sv[0];dv[1]=sv[1];}while(0)
+#define vec2_subs_impl(d,a,b) do { d[0]=a[0]-b; d[1]=a[1]-b; } while(0)
+#define vec3_subs_impl(d,a,b) do { vec2_subs_impl(d,a,b);d[2]=a[2]-b; } while(0)
+#define vec4_subs_impl(d,a,b) do { vec3_subs_impl(d,a,b);d[3]=a[3]-b; } while(0)
+FORCE_INLINE void vec2f_subs(vec2f_t dest, vec2f_t a, float b) PROC(vec2_subs_impl(dest, a, b))
+FORCE_INLINE void vec2i_subs(vec2i_t dest, vec2i_t a, int32_t b) PROC(vec2_subs_impl(dest, a, b))
+FORCE_INLINE void vec2u_subs(vec2u_t dest, vec2u_t a, uint32_t b) PROC(vec2_subs_impl(dest, a, b))
+FORCE_INLINE void vec3f_subs(vec3f_t dest, vec3f_t a, float b) PROC(vec3_subs_impl(dest, a, b))
+FORCE_INLINE void vec3i_subs(vec3i_t dest, vec3i_t a, int32_t b) PROC(vec3_subs_impl(dest, a, b))
+FORCE_INLINE void vec3u_subs(vec3u_t dest, vec3u_t a, uint32_t b) PROC(vec3_subs_impl(dest, a, b))
+FORCE_INLINE void vec4f_subs(vec4f_t dest, vec4f_t a, float b) PROC(vec4_subs_impl(dest, a, b))
+FORCE_INLINE void vec4i_subs(vec4i_t dest, vec4i_t a, int32_t b) PROC(vec4_subs_impl(dest, a, b))
+FORCE_INLINE void vec4u_subs(vec4u_t dest, vec4u_t a, uint32_t b) PROC(vec4_subs_impl(dest, a, b))
+    
+#define vec2_mul_impl(d,a,b) do { d[0]=a[0]*b[0]; d[1]=a[1]*b[1]; } while(0)
+#define vec3_mul_impl(d,a,b) do { vec2_mul_impl(d,a,b);d[2]=a[2]*b[2]; } while(0)
+#define vec4_mul_impl(d,a,b) do { vec3_mul_impl(d,a,b);d[3]=a[3]*b[3]; } while(0)
+FORCE_INLINE void vec2f_mul(vec2f_t dest, vec2f_t a, vec2f_t b) PROC(vec2_mul_impl(dest, a, b))
+FORCE_INLINE void vec2i_mul(vec2i_t dest, vec2i_t a, vec2i_t b) PROC(vec2_mul_impl(dest, a, b))
+FORCE_INLINE void vec2u_mul(vec2u_t dest, vec2u_t a, vec2u_t b) PROC(vec2_mul_impl(dest, a, b))
+FORCE_INLINE void vec3f_mul(vec3f_t dest, vec3f_t a, vec3f_t b) PROC(vec3_mul_impl(dest, a, b))
+FORCE_INLINE void vec3i_mul(vec3i_t dest, vec3i_t a, vec3i_t b) PROC(vec3_mul_impl(dest, a, b))
+FORCE_INLINE void vec3u_mul(vec3u_t dest, vec3u_t a, vec3u_t b) PROC(vec3_mul_impl(dest, a, b))
+FORCE_INLINE void vec4f_mul(vec4f_t dest, vec4f_t a, vec4f_t b) PROC(vec4_mul_impl(dest, a, b))
+FORCE_INLINE void vec4i_mul(vec4i_t dest, vec4i_t a, vec4i_t b) PROC(vec4_mul_impl(dest, a, b))
+FORCE_INLINE void vec4u_mul(vec4u_t dest, vec4u_t a, vec4u_t b) PROC(vec4_mul_impl(dest, a, b))
+    
+#define vec2_muls_impl(d,a,b) do { d[0]=a[0]*b; d[1]=a[1]*b; } while(0)
+#define vec3_muls_impl(d,a,b) do { vec2_muls_impl(d,a,b);d[2]=a[2]*b; } while(0)
+#define vec4_muls_impl(d,a,b) do { vec3_muls_impl(d,a,b);d[3]=a[3]*b; } while(0)
+FORCE_INLINE void vec2f_muls(vec2f_t dest, vec2f_t a, float b) PROC(vec2_muls_impl(dest, a, b))
+FORCE_INLINE void vec2i_muls(vec2i_t dest, vec2i_t a, int32_t b) PROC(vec2_muls_impl(dest, a, b))
+FORCE_INLINE void vec2u_muls(vec2u_t dest, vec2u_t a, uint32_t b) PROC(vec2_muls_impl(dest, a, b))
+FORCE_INLINE void vec3f_muls(vec3f_t dest, vec3f_t a, float b) PROC(vec3_muls_impl(dest, a, b))
+FORCE_INLINE void vec3i_muls(vec3i_t dest, vec3i_t a, int32_t b) PROC(vec3_muls_impl(dest, a, b))
+FORCE_INLINE void vec3u_muls(vec3u_t dest, vec3u_t a, uint32_t b) PROC(vec3_muls_impl(dest, a, b))
+FORCE_INLINE void vec4f_muls(vec4f_t dest, vec4f_t a, float b) PROC(vec4_muls_impl(dest, a, b))
+FORCE_INLINE void vec4i_muls(vec4i_t dest, vec4i_t a, int32_t b) PROC(vec4_muls_impl(dest, a, b))
+FORCE_INLINE void vec4u_muls(vec4u_t dest, vec4u_t a, uint32_t b) PROC(vec4_muls_impl(dest, a, b))
+ 
+#define vec2_len_impl(a) sqrtf((float)(vec2_dot_impl(a,a)))
+#define vec3_len_impl(a) sqrtf((float)(vec3_dot_impl(a,a)))
+#define vec4_len_impl(a) sqrtf((float)(vec4_dot_impl(a,a)))
+FORCE_INLINE float vec2f_len(vec2f_t a) FUNC(vec2_len_impl(a))
+FORCE_INLINE float vec2i_len(vec2i_t a) FUNC(vec2_len_impl(a))
+FORCE_INLINE float vec2u_len(vec2u_t a) FUNC(vec2_len_impl(a))
+FORCE_INLINE float vec3f_len(vec3f_t a) FUNC(vec3_len_impl(a))
+FORCE_INLINE float vec3i_len(vec3i_t a) FUNC(vec3_len_impl(a))
+FORCE_INLINE float vec3u_len(vec3u_t a) FUNC(vec3_len_impl(a))
+FORCE_INLINE float vec4f_len(vec4f_t a) FUNC(vec4_len_impl(a))
+FORCE_INLINE float vec4i_len(vec4i_t a) FUNC(vec4_len_impl(a))
+FORCE_INLINE float vec4u_len(vec4u_t a) FUNC(vec4_len_impl(a))
+    
+FORCE_INLINE void vec3f_cross(vec3f_t dest, const vec3f_t a, const vec3f_t b)
+{
+    dest[0] = a[1] * b[2] - a[2] * b[1];
+    dest[1] = a[2] * b[0] - a[0] * b[2];
+    dest[2] = a[0] * b[1] - a[1] * b[0];
+}
+    
+///////////////////////////////////////////////////////////////////////////////////
+
+#define MATH_VEC3F(x, y, z) (vec3f_t){x, y, z}
+    
+#define MATH_VEC2_MOV(dv, sv) do{dv[0]=sv[0];dv[1]=sv[1];}while(0)
+#define MATH_VEC3_MOV(dv, sv) do{dv[0]=sv[0];dv[1]=sv[1];dv[2]=sv[2];}while(0)
 
 typedef float mat4f_t[4][4];
 
@@ -55,6 +180,30 @@ void mathVec3fSub(vec3f_t dest, const vec3f_t a, const vec3f_t b)
     dest[0] = a[0] - b[0];
     dest[1] = a[1] - b[1];
     dest[2] = a[2] - b[2];
+}
+    
+FORCE_INLINE
+void mathVec3fAdd(vec3f_t dest, const vec3f_t a, const vec3f_t b)
+{
+    dest[0] = a[0] + b[0];
+    dest[1] = a[1] + b[1];
+    dest[2] = a[2] + b[2];
+}
+
+FORCE_INLINE
+void mathVec3fVec3f(vec3f_t dest, const vec3f_t a, const vec3f_t b)
+{
+    dest[0] = a[0] * b[0];
+    dest[1] = a[1] * b[1];
+    dest[2] = a[2] * b[2];
+}
+    
+FORCE_INLINE
+void mathVec3fFloat(vec3f_t dest, const vec3f_t a, const float b)
+{
+    dest[0] = a[0] * b;
+    dest[1] = a[1] * b;
+    dest[2] = a[2] * b;
 }
 
 FORCE_INLINE
@@ -158,13 +307,13 @@ void mathMat4LookAt(mat4f_t dest, const vec3f_t eye, const vec3f_t to, const vec
 }
 
 FORCE_INLINE
-void mathQuatInit(quat_t dest, float x, float y, float z, float angle)
+void mathQuatInit(quat_t dest, vec3f_t axis, float angle)
 {
     float a = 0.5f * angle;
     float sa = sinf(a);
-    dest[0] = sa * x;
-    dest[1] = sa * y;
-    dest[2] = sa * z;
+    dest[0] = sa * axis[0];
+    dest[1] = sa * axis[1];
+    dest[2] = sa * axis[2];
     dest[3] = cosf(a);
 }
 
@@ -176,3 +325,19 @@ void mathQuatMul(quat_t dest, quat_t a, quat_t b)
     dest[2] = b[0] * a[2] + b[1] * a[3] + b[2] * a[0] - b[3] * a[1];
     dest[3] = b[0] * a[3] - b[1] * a[2] + b[2] * a[1] + b[3] * a[0];
 }
+
+FORCE_INLINE
+void mathQuatVec3(vec3f_t dest, quat_t q, vec3f_t v)
+{
+    vec3f_t tmp0, tmp1;
+    mathVec3fCross(tmp0, q, v);
+    mathVec3fFloat(tmp0, tmp0, 2.f);
+    mathVec3fCross(tmp1, q, tmp0);
+    mathVec3fFloat(tmp0, tmp0, q[3]);
+    mathVec3fAdd(tmp0, tmp0, tmp1);
+    mathVec3fAdd(dest, v, tmp0);
+}
+    
+#ifdef _cplusplus
+}
+#endif

@@ -1,5 +1,10 @@
 #pragma once
 
+#ifdef _cplusplus
+extern "C"
+{
+#endif
+
 #include <stdint.h>
 
 enum
@@ -20,3 +25,7 @@ struct typeid_t
     uint16_t valueType;
     uint16_t arraySize;
 };
+    
+#ifdef _cplusplus
+}
+#endif

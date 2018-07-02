@@ -53,6 +53,23 @@ void checkerboard(struct gfxTexture_t_* texture)
 	texture->imageData = mem;
 }
 
+/**************************************************/
+
+struct ngPerlin_t_
+{
+    vec2u_t gridSize;
+    vec2f_t* gradients;
+};
+
+typedef struct ngPerlin_t_ ngPerlin_t;
+
+static float ngPerlinEval(ngPerlin_t* gen, vec2u_t pos)
+{
+    return 0.f;
+}
+
+/**************************************************/
+
 typedef struct ngVoronoi_t
 {
     vec2u_t gridSize;
@@ -75,7 +92,7 @@ void ngInitVoronoi(ngVoronoi_t** gen, vec2u_t gridSize, uint32_t fpPerTile)
         tmp->featurePoints[i][0] = mathRandomf(prng);
         tmp->featurePoints[i][1] = mathRandomf(prng);
     }
-	VEC2_MOV(tmp->gridSize, gridSize);
+	MATH_VEC2_MOV(tmp->gridSize, gridSize);
 	tmp->fpPerTile = fpPerTile;
 	*gen = tmp;
 }
@@ -157,7 +174,7 @@ void ngMakeVoronoi(ngVoronoi_t* gen, gfxTexture_t texture)
 	texture->sampledTexture = true;
 }
 
-void voronoiNoise(struct gfxTexture_t_* texture, uint32_t gridW, uint32_t gridH)
+void voronoiNoise(gfxTexture_t texture, uint32_t gridW, uint32_t gridH)
 {
     CHECK(gridW > 0 && gridH > 0);
 	ngVoronoi_t* gen = NULL;

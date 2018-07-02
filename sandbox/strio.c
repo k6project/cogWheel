@@ -30,6 +30,12 @@ struct FSTextFile
 
 #define fsReadFile(b,s,f) fread(b,s,1,f)
 
+/*
+ioReadLine(ioInput_t src, char* dest, size_t size);
+read line from src (terminated by LF or EOF), or (size-1)
+io->readLine(input)
+*/
+
 const char* fsReadLine(struct FSTextFile* tFile)
 {
     bool scan = true;

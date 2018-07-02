@@ -11,12 +11,6 @@ extern "C"
 #define MEM_ALIGN_MASK (MEM_ALIGN_DEFAULT-1)
 #define MEM_ALIGNED(n) ((n+MEM_ALIGN_MASK)&(~MEM_ALIGN_MASK))
 
-#ifdef _MSC_VER
-#define ALIGNED(n) __declspec( align( n ) )
-#else
-#define ALIGNED(n) __attribute__((aligned( n )))
-#endif
-
 struct memStackMarker_t;
 
 struct memStackAlloc_t;

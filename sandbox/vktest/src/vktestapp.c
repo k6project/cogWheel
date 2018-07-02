@@ -19,6 +19,12 @@ void onWindowResized(GLFWwindow* window, int width, int height)
 
 int main(int argc, const char * argv[])
 {
+    vec3f_t dir = {1.f, 0.f, 0.f};
+    vec3f_t axis = {0.f, 0.f, 1.f};
+    quat_t rot;
+    mathQuatInit(rot, axis, mathDeg2Rad(90));
+    mathQuatVec3(dir, rot, dir);
+    int test[3] = {1, test[0]+1, test[1]};
     if (glfwInit())
     {
         GLFWmonitor* monitor = NULL;

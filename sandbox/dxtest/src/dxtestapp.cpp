@@ -174,6 +174,53 @@ static void onWindowResized(GLFWwindow* window, int width, int height)
 }
 #endif
 
+typedef enum
+{
+    OBJ_COMMENT,
+    OBJ_VERTEX_POS,
+    OBJ_VERTEX_NORM,
+    OBJ_VERTEX_TEXCOORD,
+    OBJ_FACE,
+    OBJ_OBJECT
+} objToken_t
+
+objToken_t objParseToken(const char* str, const char** valStr)
+{
+    objToken_t token = OBJ_COMMENT;
+    switch (*str++)
+    {
+    case 'o':
+    case 'O':
+        token = OBJ_OBJECT;
+        break;
+    case 'v':
+    case 'V':
+        switch (*str++)
+        {
+        case 'n':
+        case 'N':
+            token = OBJ_VERTEX_NORM;
+            break;
+        case 't':
+        case 'T':
+            token = OBJ_VERTEX_TEXCOORD;
+            break;
+        default :
+            token = OBJ_VERTEX_POS;
+            break;
+        }
+        break;
+    case 'f':
+    case 'F':
+        token = OBJ_FACE;
+        break;
+    default:
+        break;
+    }
+    valStr = str;
+    return token;
+}
+
 void objParseVector2f(const char* str, vec2f_t out)
 {
 	char* separator = NULL;
