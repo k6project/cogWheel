@@ -176,13 +176,13 @@ static void onWindowResized(GLFWwindow* window, int width, int height)
 
 typedef enum
 {
-    OBJ_COMMENT,
-    OBJ_VERTEX_POS,
-    OBJ_VERTEX_NORM,
-    OBJ_VERTEX_TEXCOORD,
-    OBJ_FACE,
-    OBJ_OBJECT
-} objToken_t
+	OBJ_COMMENT,
+	OBJ_VERTEX_POS,
+	OBJ_VERTEX_NORM,
+	OBJ_VERTEX_TEXCOORD,
+	OBJ_FACE,
+	OBJ_OBJECT
+} objToken_t;
 
 objToken_t objParseToken(const char* str, const char** valStr)
 {
@@ -217,7 +217,7 @@ objToken_t objParseToken(const char* str, const char** valStr)
     default:
         break;
     }
-    valStr = str;
+    *valStr = str;
     return token;
 }
 
