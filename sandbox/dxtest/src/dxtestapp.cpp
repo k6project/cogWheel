@@ -12,6 +12,97 @@
 #pragma comment (lib, "d3d11.lib")
 #pragma comment (lib, "d3dcompiler.lib")
 
+/*
+
+//////
+
+#define MAX_VAO_BUFFERS 8
+
+struct D3D12VertexArray
+{
+	struct
+	{
+		ID3D12Resource* resource;
+		UINT size;
+		UINT stride;
+	} vertexBuffers;
+
+	UINT numVertexBuffers;
+
+	ID3D12resource* indexBuffer;
+
+	DXGI_FORMAT indexFormat;
+
+	UINT indexBufferSize;
+
+	D3D12_PRIMITIVE_TOPOLOGY topology;
+
+	UINT drawCount;
+}
+
+struct D3D12VertexArray;
+typedef D3D12VertexArray* RVertexArray;
+
+/// RContext::Draw(const RVertexArray vao)
+
+void D3D12Context::Draw(const D3D12VertexArray* vao)
+{
+	const D3D12VertexArray& vArray = *vao;
+	D3D12_VERTEX_BUFFER_VIEW views[MAX_VAO_BUFFERS];
+	for (UINT i = 0; i < vArray.numVertexBuffers; i++)
+	{
+		const auto& vBuffer = vArray.vertexBuffers[i];
+		views[i].BufferLocation = vBuffer.resource->GetGPUVirtualAddress();
+		views[i].StrideInBytes = vBuffer.stride;
+		views[i].SizeInBytes = vBuffer.size;
+	}
+	commandList->IASetPrimitiveTopology(vArray.topology);
+	commandList->IASetVertexBuffers(0, vArray.numVertexBuffers, views);
+	if (vArray.indexBuffer)
+	{
+		D3D12_INDEX_BUFFER_VIEW view;
+		view.BufferLocation = vArray.indexBuffer->GetGPUVirtualAddress();
+		view.Format = vArray.indexFormat;
+		view.SizeInBytes = vArray.indexBufferSize;
+		commandList->IASetIndexBuffer(&view);
+		commandList->DrawIndexedInstanced(vArray.drawCount, 1, 0, 0, 0);
+	}
+	else
+	{
+		commandList->DrawInstanced(vArray.drawCount, 1, 0, 0);
+	}
+}
+
+D3D12VertexArray mesh;
+
+//R - Rendering (RContext, RVertexData, RVertexArray(handle), RShaderData, RShader(handle), RPipeline(handle), RTextureData, RTexture(handle))
+//A - Asset
+//G - Game
+//X - eXternal (library)
+//N - platform-Native
+//U - Utility
+
+VertexData meshData = {};
+meshData.stride = sizeof(Vertex);
+meshData.topology = GFX_TRIANGLE_LIST;
+meshData.vboCount = 1;
+meshData.vboData = ...;
+meshData.vboSize = ...;
+meshData.vboStride = ...;
+meshData.iboData = ...;
+meshData.iboSize = ...;
+meshData.iboType = ...;
+
+gD3D12Context->CreateVertexArray(meshData, mesh);
+//////
+
+//manage stack-allocated array of barriers
+D3D12ResourceBarrier barrier;
+barrier.AddTransition(myResource, D3D12_RESOURCE_STATE_PRESENT);
+
+gD3D12Context->ResourceBarrier(barrier): current command list for current thread
+*/
+
 static IDXGISwapChain* gSwapchain;
 static ID3D11Device* gDevice;
 static ID3D11DeviceContext* gDC;
